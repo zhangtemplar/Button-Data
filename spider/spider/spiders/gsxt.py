@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import scrapy
+from base.spider import Spider
 from scrapy_selenium import SeleniumRequest
 from selenium.webdriver.chrome.webdriver import WebDriver
 import logging
@@ -7,27 +7,15 @@ import time
 import os
 import uuid
 from proxy.pool import POOL
-from proxy.data5u import GetProxyThread
 
 
-class GsxtSpider(scrapy.Spider):
+class GsxtSpider(Spider):
     name = 'gsxt'
     allowed_domains = ['gsxt.gov.cn']
     start_urls = [
         'http://gsxt.gov.cn/',
         'http://www.gsxt.gov.cn/corp-query-entprise-info-hot-search-list.html?province=100000']
     work_directory = os.path.expanduser('~/Downloads/gsxt')
-
-    def __init__(self):
-        super(scrapy.Spider, self).__init__()
-        self.thread = GetProxyThread()
-        self.thread.start()
-        # wait for 10 seconds to build the pool
-        time.sleep(10)
-
-    @staticmethod
-    def close(spider, reason):
-        spider.thread.close()
 
     def start_requests(self):
         for url in self.start_urls:
@@ -39,9 +27,6 @@ class GsxtSpider(scrapy.Spider):
                     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36',
                 },
                 errback=self.handle_failure)
-
-    def handle_failure(self, failure):
-        POOL.remove(failure.request.meta['proxy'])
 
     def parse(self, response):
         self._parse_report(response)

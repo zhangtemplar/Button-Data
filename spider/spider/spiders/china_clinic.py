@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from base.spider import Spider
 import scrapy
 import logging
 import os
@@ -6,25 +7,13 @@ import json
 import uuid
 import random
 from proxy.pool import POOL
-from proxy.data5u import GetProxyThread
 import time
 
 
-class ChinaClinicSpider(scrapy.Spider):
+class ChinaClinicSpider(Spider):
     name = 'china_clinic'
     allowed_domains = ['chictr.org.cn']
     work_directory = os.path.expanduser('~/Downloads/clinic')
-
-    def __init__(self):
-        super(scrapy.Spider, self).__init__()
-        self.thread = GetProxyThread()
-        self.thread.start()
-        # wait for 10 seconds to build the pool
-        time.sleep(10)
-
-    @staticmethod
-    def close(spider, reason):
-        spider.thread.close()
 
     def start_requests(self):
         urls = json.load(open(os.path.join(self.work_directory, 'links.json'), 'rb'))
@@ -43,9 +32,6 @@ class ChinaClinicSpider(scrapy.Spider):
                 },
                 errback=self.handle_failure)
             time.sleep(random.random())
-
-    def handle_failure(self, failure):
-        POOL.remove(failure.request.meta['proxy'])
 
     def parse(self, response):
         # find the document url
