@@ -9,7 +9,7 @@ Add documentation of this module here.
 import requests
 import time
 import threading
-from pool import POOL
+from proxy.pool import POOL
 
 
 class GetProxyThread(threading.Thread):

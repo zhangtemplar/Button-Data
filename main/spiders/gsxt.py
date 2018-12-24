@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from base.spider import Spider
+from base.buttonspider import ButtonSpider
 from scrapy_selenium import SeleniumRequest
 from selenium.webdriver.chrome.webdriver import WebDriver
 import logging
@@ -9,7 +9,7 @@ import uuid
 from proxy.pool import POOL
 
 
-class GsxtSpider(Spider):
+class GsxtButtonSpider(ButtonSpider):
     name = 'gsxt'
     allowed_domains = ['gsxt.gov.cn']
     start_urls = [

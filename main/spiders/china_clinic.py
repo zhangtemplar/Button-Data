@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from base.spider import Spider
+from base.buttonspider import ButtonSpider
 import scrapy
 import logging
 import os
@@ -10,7 +10,7 @@ from proxy.pool import POOL
 import time
 
 
-class ChinaClinicSpider(Spider):
+class ChinaClinicButtonSpider(ButtonSpider):
     name = 'china_clinic'
     allowed_domains = ['chictr.org.cn']
     work_directory = os.path.expanduser('~/Downloads/clinic')

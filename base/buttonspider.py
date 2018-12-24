@@ -11,7 +11,7 @@ from proxy.data5u import GetProxyThread
 import time
 
 
-class Spider(scrapy.Spider):
+class ButtonSpider(scrapy.Spider):
 
     def __init__(self, with_proxy=True):
         super(scrapy.Spider, self).__init__()

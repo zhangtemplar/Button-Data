@@ -41,7 +41,7 @@ class ExpirationSet(object):
         timestamp = time()
         self.data[key] = [expiration_seconds + time(), 0]
         # remove all the old keys
-        keys = self.data.keys()
+        keys = list(self.data.keys())
         for k in keys:
             # remove the expired or overused item
             if self.data[k][0] < timestamp or self.data[k][1] > expiration_count:
@@ -64,7 +64,7 @@ class ExpirationSet(object):
         if len(self.data.keys()) < 1:
             print('the pool is empty now')
             return None
-        key = random.choice(self.data.keys())
+        key = random.choice(list(self.data.keys()))
         # increase the count
         self.data[key][1] += 1
         return key
