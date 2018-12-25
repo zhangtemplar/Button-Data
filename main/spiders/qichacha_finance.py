@@ -2,6 +2,7 @@
 import logging
 import os
 
+import scrapy
 from urllib.parse import parse_qs, urlparse
 from scrapy_selenium import SeleniumRequest
 from selenium.webdriver.chrome.webdriver import WebDriver
@@ -9,6 +10,7 @@ from selenium.webdriver.chrome.webdriver import WebDriver
 from base.buttonspider import ButtonSpider
 from proxy.pool import POOL
 import copy
+import json
 
 
 class QichachaFinanceButtonSpider(ButtonSpider):
@@ -56,57 +58,41 @@ class QichachaFinanceButtonSpider(ButtonSpider):
             for p in self.province:
                 for i in self.industry:
                     for r in self.round:
-                        yield SeleniumRequest(
+                        yield scrapy.Request(
                             url=url,
                             callback=self.parse,
                             meta={
                                 'proxy': POOL.get(),
                                 'extra': {'province': p, 'industry': i, 'round': r}},
-                            headers={
-                                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36',
-                            },
                             errback=self.handle_failure)
 
     @staticmethod
     def parse_url(url):
         return parse_qs(urlparse(url).query)
 
-    @staticmethod
-    def get_driver(response):
-        # type: (object) -> WebDriver
-        """
-        Obtains the web driver from response
-
-        :param response: response object
-        :return: WebDriver
-        """
-        return response.meta['driver']
-
     def next_page(self, response):
         arguments = copy.copy(response.request.meta['extra'])
         driver = self.get_driver(response)
         next_page = driver.find_elements_by_xpath("//nav/ul/li/a[@class='next']")
         if len(next_page) < 1:
+            self.log('cannot find next page', level=logging.WARN)
             return
         arguments['page'] += 1
         next_page = self.format_url(arguments['province'], arguments['industry'], arguments['round'], arguments['page'])
         self.log('go to page {}'.format(next_page), level=logging.INFO)
-        yield SeleniumRequest(
+        yield scrapy.Request(
             url=next_page,
             callback=self.parse,
             # reuse the current proxy
             meta={'proxy': response.request.meta['proxy'], 'extra': arguments},
-            headers={
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36',
-            },
             errback=self.handle_failure)
 
     def parse(self, response):
         arguments = copy.copy(response.request.meta['extra'])
         if os.path.exists(os.path.join(
                 self.work_directory,
-                '{}_{}_{}_{}'.format(
-                    arguments['province'], arguments['round'], arguments['industry'], arguments.get('p')))):
+                '{}_{}_{}_{}.json'.format(
+                    arguments['province'], arguments['round'], arguments['industry'], arguments.get('page', 1)))):
             # next page
             self.log('page {} already processed'.format(response.request.url))
             self.next_page(response)
@@ -120,9 +106,6 @@ class QichachaFinanceButtonSpider(ButtonSpider):
                 callback=self.parse,
                 # reuse the current proxy
                 meta={'proxy': response.request.meta['proxy'], 'extra': arguments},
-                headers={
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36',
-                },
                 errback=self.handle_failure)
         else:
             # process the real data
@@ -130,6 +113,7 @@ class QichachaFinanceButtonSpider(ButtonSpider):
             driver = self.get_driver(response)
             row = driver.find_elements_by_xpath("//table[@class='ntable']/tbody/tr")
             first_row = True
+            result = []
             for r in row:
                 if first_row:
                     first_row = False
@@ -140,13 +124,23 @@ class QichachaFinanceButtonSpider(ButtonSpider):
                 investor = r.find_element_by_xpath('td[3]').text
                 stage = r.find_element_by_xpath('td[4]').text
                 time = r.find_element_by_xpath('td[5]').text
-                yield {'image': image, 'project': {'url': project_url, 'name': project_name}, 'investor': investor,
-                       'stage': stage, 'time': time}
+                result.append({'image': image, 'project': {'url': project_url, 'name': project_name}, 'investor': investor,
+                       'stage': stage, 'time': time})
                 self.log('find investment from {} to {}'.format(investor, project_name), level=logging.INFO)
             # save the file
-            open(
+            with open(
                 os.path.join(
                     self.work_directory,
-                    '{}_{}_{}_{}'.format(
-                        arguments['province'], arguments['round'], arguments['industry'], arguments.get('p'))),
-                'w').close()
+                    '{}_{}_{}_{}.json'.format(
+                        arguments['province'], arguments['round'], arguments['industry'], arguments['page'])),
+                    'w') as fo:
+                json.dump(result, fo)
+            with open(
+                    os.path.join(
+                        self.work_directory,
+                        '{}_{}_{}_{}.html'.format(
+                            arguments['province'], arguments['round'], arguments['industry'], arguments['page'])),
+                    'w') as fo:
+                fo.write(response.body)
+            # go to next page
+            self.next_page(response)
