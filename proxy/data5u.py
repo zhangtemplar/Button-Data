@@ -10,6 +10,7 @@ import requests
 import time
 import threading
 from proxy.pool import POOL
+import logging
 
 
 class GetProxyThread(threading.Thread):
@@ -29,7 +30,7 @@ class GetProxyThread(threading.Thread):
         """
         while self.running.is_set():
             proxy = requests.get(self.api_url).content.decode().split(self.token)
-            print('add new proxy {} to pool'.format(proxy))
+            logging.debug('add new proxy {} to pool'.format(proxy))
             for p in proxy:
                 POOL.add('http://' + p[:-1])
             time.sleep(self.delay_second)

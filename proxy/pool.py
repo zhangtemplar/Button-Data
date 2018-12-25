@@ -8,6 +8,7 @@ Add documentation of this module here.
 
 from time import time
 import random
+import logging
 
 
 class ExpirationSet(object):
@@ -45,15 +46,15 @@ class ExpirationSet(object):
         for k in keys:
             # remove the expired or overused item
             if self.data[k][0] < timestamp or self.data[k][1] > expiration_count:
-                print('remove invalid proxy {}:{}/{}'.format(k, self.data[k][0], self.data[k][1]))
+                logging.debug('remove invalid proxy {}:{}/{}'.format(k, self.data[k][0], self.data[k][1]))
                 del self.data[k]
 
     def remove(self, key):
         if key in self.data:
-            print('remove invalid proxy {}:{}/{}'.format(key, self.data[key][0], self.data[key][1]))
+            logging.debug('remove invalid proxy {}:{}/{}'.format(key, self.data[key][0], self.data[key][1]))
             del self.data[key]
         else:
-            print('{} is not in pool'.format(key))
+            logging.warning('{} is not in pool'.format(key))
 
     def get(self):
         """
@@ -62,7 +63,7 @@ class ExpirationSet(object):
         :return: the data if available, otherwise None
         """
         if len(self.data.keys()) < 1:
-            print('the pool is empty now')
+            logging.warning('the pool is empty now')
             return None
         key = random.choice(list(self.data.keys()))
         # increase the count
