@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
+import json
 import logging
 import os
+import random
+import time
+from urllib.parse import parse_qs, urlparse
 
 import scrapy
-from urllib.parse import parse_qs, urlparse
-from scrapy_selenium import SeleniumRequest
-from selenium.webdriver.chrome.webdriver import WebDriver
 
 from base.buttonspider import ButtonSpider
 from proxy.pool import POOL
-import copy
-import json
 
 
 class QichachaFinanceButtonSpider(ButtonSpider):
@@ -47,10 +46,10 @@ class QichachaFinanceButtonSpider(ButtonSpider):
     @staticmethod
     def format_url(province, industry, stage, page=1):
         if page == 1:
-            return 'https://www.qichacha.com/elib_financing?province={province}&city=&county=&round={stage}&date=&industry={industry}&date='.format(
+            return 'https://www.qichacha.com/elib_financing?province={province}&city=&county=&round={stage}&date=&industry={industry}'.format(
                 province=province, industry=industry, stage=stage)
         else:
-            return 'https://www.qichacha.com/elib_financing?province={province}&city=&county=&round={stage}&date=&industry={industry}&date=&p={page}'.format(
+            return 'https://www.qichacha.com/elib_financing?province={province}&city=&county=&round={stage}&date=&industry={industry}&p={page}'.format(
                 province=province, industry=industry, stage=stage, page=page)
 
     def start_requests(self):
@@ -58,9 +57,11 @@ class QichachaFinanceButtonSpider(ButtonSpider):
             for p in self.province:
                 for i in self.industry:
                     for r in self.round:
+                        self.log('start page province={} industry={} and round={}'.format(p, i, r), level=logging.INFO)
                         yield scrapy.Request(
                             url=url,
-                            callback=self.parse,
+                            dont_filter=True,
+                            callback=self.apply_filter,
                             meta={
                                 'proxy': POOL.get(),
                                 'extra': {'province': p, 'industry': i, 'round': r}},
@@ -71,76 +72,92 @@ class QichachaFinanceButtonSpider(ButtonSpider):
         return parse_qs(urlparse(url).query)
 
     def next_page(self, response):
-        arguments = copy.copy(response.request.meta['extra'])
-        driver = self.get_driver(response)
-        next_page = driver.find_elements_by_xpath("//nav/ul/li/a[@class='next']")
-        if len(next_page) < 1:
+        next_page = response.xpath("//nav/ul/li/a[@class='next']/@href").extract_first()
+        if next_page is None:
             self.log('cannot find next page', level=logging.WARN)
             return
-        arguments['page'] += 1
-        next_page = self.format_url(arguments['province'], arguments['industry'], arguments['round'], arguments['page'])
-        self.log('go to page {}'.format(next_page), level=logging.INFO)
-        yield scrapy.Request(
+        self.log('next page {}'.format(next_page), level=logging.INFO)
+        return response.follow(
             url=next_page,
             callback=self.parse,
             # reuse the current proxy
-            meta={'proxy': response.request.meta['proxy'], 'extra': arguments},
+            meta={'proxy': response.request.meta['proxy']},
+            errback=self.handle_failure)
+        time.sleep(random.random())
+
+    def navigate(self, response, url):
+        self.log('go to page {}'.format(url), level=logging.INFO)
+        return response.follow(
+            url=url,
+            callback=self.parse,
+            # reuse the current proxy
+            meta={'proxy': response.request.meta['proxy']},
             errback=self.handle_failure)
 
-    def parse(self, response):
-        arguments = copy.copy(response.request.meta['extra'])
-        if os.path.exists(os.path.join(
-                self.work_directory,
-                '{}_{}_{}_{}.json'.format(
-                    arguments['province'], arguments['round'], arguments['industry'], arguments.get('page', 1)))):
-            # next page
-            self.log('page {} already processed'.format(response.request.url))
-            self.next_page(response)
-        elif 'page' not in arguments:
-            # select the filter
-            arguments['page'] = 1
-            url = self.format_url(arguments['province'], arguments['industry'], arguments['round'], arguments['page'])
-            self.log('go to page {}'.format(url), level=logging.INFO)
-            yield SeleniumRequest(
-                url=url,
-                callback=self.parse,
-                # reuse the current proxy
-                meta={'proxy': response.request.meta['proxy'], 'extra': arguments},
-                errback=self.handle_failure)
-        else:
-            # process the real data
-            self.log('Process page {}'.format(response.request.url), level=logging.INFO)
-            driver = self.get_driver(response)
-            row = driver.find_elements_by_xpath("//table[@class='ntable']/tbody/tr")
-            first_row = True
-            result = []
-            for r in row:
-                if first_row:
-                    first_row = False
-                    continue
-                image = r.find_element_by_xpath('td[1]/img').get_attribute('src')
-                project_name = r.find_element_by_xpath('td[2]/a').text
-                project_url = r.find_element_by_xpath('td[2]/a').get_attribute('src')
-                investor = r.find_element_by_xpath('td[3]').text
-                stage = r.find_element_by_xpath('td[4]').text
-                time = r.find_element_by_xpath('td[5]').text
-                result.append({'image': image, 'project': {'url': project_url, 'name': project_name}, 'investor': investor,
-                       'stage': stage, 'time': time})
-                self.log('find investment from {} to {}'.format(investor, project_name), level=logging.INFO)
-            # save the file
-            with open(
+    def extract_page(self, response):
+        arguments = self.parse_url(response.request.url)
+        self.log('Process page {}'.format(response.request.url), level=logging.INFO)
+        with open(
                 os.path.join(
                     self.work_directory,
-                    '{}_{}_{}_{}.json'.format(
-                        arguments['province'], arguments['round'], arguments['industry'], arguments['page'])),
-                    'w') as fo:
-                json.dump(result, fo)
-            with open(
-                    os.path.join(
-                        self.work_directory,
-                        '{}_{}_{}_{}.html'.format(
-                            arguments['province'], arguments['round'], arguments['industry'], arguments['page'])),
-                    'w') as fo:
-                fo.write(response.body)
-            # go to next page
-            self.next_page(response)
+                    '{}_{}_{}_{}.html'.format(arguments['province'][0], arguments['round'][0],
+                                              arguments['industry'][0], arguments.get('p', ['1'])[0])),
+                'wb') as fo:
+            fo.write(response.body)
+        row = response.xpath("//table[@class='ntable']/tr")
+        if len(row) < 1:
+            self.log('page {} has no data'.format(response.request.url), level=logging.WARNING)
+            POOL.remove(response.request.meta['proxy'])
+            return
+        first_row = True
+        result = []
+        for r in row:
+            if first_row:
+                first_row = False
+                continue
+            image = r.xpath('td[1]/img/@src').extract_first()
+            project_name = r.xpath('td[2]/a/text()').extract_first()
+            project_url = r.xpath('td[2]/a/@src').extract_first()
+            investor = r.xpath('td[3]/text()').extract_first()
+            stage = r.xpath('td[4]/text()').extract_first()
+            invest_time = r.xpath('td[5]/text()').extract_first()
+            result.append({
+                'image': image,
+                'project': {'url': project_url, 'name': project_name},
+                'investor': investor,
+                'stage': stage,
+                'time': invest_time})
+            self.log('find investment from {} to {}'.format(investor, project_name), level=logging.INFO)
+        # save the file
+        with open(
+                os.path.join(
+                    self.work_directory,
+                    '{}_{}_{}_{}.json'.format(arguments['province'][0], arguments['round'][0],
+                                              arguments['industry'][0], arguments.get('p', ['1'])[0])),
+                'w') as fo:
+            json.dump(result, fo)
+
+    def apply_filter(self, response):
+        arguments = response.request.meta['extra']
+        # need to select the filter first
+        page = self.skip_processed(arguments)
+        url = self.format_url(arguments['province'], arguments['industry'], arguments['round'], page)
+        yield self.navigate(response, url)
+
+    def skip_processed(self, arguments):
+        page = 1
+        while os.path.exists(os.path.join(
+                self.work_directory,
+                '{}_{}_{}_{}.json'.format(
+                    arguments['province'], arguments['round'], arguments['industry'], page))):
+            # skip the processed and go to next page
+            page += 1
+            self.log('skip page {}'.format(page), level=logging.INFO)
+        # start from this page
+        return page
+
+    def parse(self, response):
+        # process the real data
+        self.extract_page(response)
+        # go to next page
+        yield self.next_page(response)

@@ -15,7 +15,7 @@ class ExpirationSet(object):
     """
     A set which associates the expiration time for each of its entry
     """
-    def __init__(self, expiration_seconds, expiration_count):
+    def __init__(self, expiration_seconds, expiration_count=9223372036854775807):
         """
         Initializes the expiration pool with expiration time
 
@@ -71,4 +71,4 @@ class ExpirationSet(object):
         return key
 
 
-POOL = ExpirationSet(300, 30)
+POOL = ExpirationSet(300)
