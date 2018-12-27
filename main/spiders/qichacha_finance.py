@@ -135,7 +135,7 @@ class QichachaFinanceButtonSpider(ButtonSpider):
                     '{}_{}_{}_{}.json'.format(arguments['province'][0], arguments['round'][0],
                                               arguments['industry'][0], arguments.get('p', ['1'])[0])),
                 'w') as fo:
-            json.dump(result, fo)
+            json.dump(result, fo, ensure_ascii=False)
 
     def apply_filter(self, response):
         arguments = response.request.meta['extra']

@@ -72,7 +72,7 @@ class PedailyPeSpider(ButtonSpider):
         with open(file_name + '.html', 'wb') as fo:
             fo.write(response.body)
         with open(file_name + '.json', 'w') as fo:
-            json.dump(result, fo)
+            json.dump(result, fo, ensure_ascii=False)
         # go to next page
         next_page = response.xpath(
             "//div[@class='page-list page']/a[@class='next' and text()='下一页']/@href").extract_first()

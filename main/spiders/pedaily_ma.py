@@ -68,7 +68,7 @@ class PedailyMaSpider(ButtonSpider):
                     links.append(f.get_attribute('href'))
         self.log('find filter ' + result.__str__(), level=logging.INFO)
         with open(os.path.join(self.work_directory, 'category.json'), 'w') as fo:
-            json.dump(result, fo)
+            json.dump(result, fo, ensure_ascii=False)
         return links
 
     def apply_filter(self, response):
@@ -136,7 +136,7 @@ class PedailyMaSpider(ButtonSpider):
         with open(file_name + '.html', 'wb') as fo:
             fo.write(response.body)
         with open(file_name + '.json', 'w') as fo:
-            json.dump(result, fo)
+            json.dump(result, fo, ensure_ascii=False)
         # go to next page
         next_page = response.xpath(
             "//div[@class='page-list page']/a[@class='next' and text()='下一页']/@href").extract_first()
