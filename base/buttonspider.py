@@ -5,10 +5,13 @@ __email__ = "zhangtemplar@gmail.com"
 """
 Add documentation of this module here.
 """
-import scrapy
-from proxy.pool import POOL
-from proxy.data5u import GetProxyThread
+import logging
 import time
+
+import scrapy
+
+from proxy.data5u import GetProxyThread
+from proxy.pool import POOL
 
 
 class ButtonSpider(scrapy.Spider):
@@ -30,5 +33,14 @@ class ButtonSpider(scrapy.Spider):
             spider.proxyThread.close()
 
     def handle_failure(self, failure):
+        self.log('fail to collect {}\n{}'.format(failure.request.url, failure), level=logging.ERROR)
         if self.with_proxy:
             POOL.remove(failure.request.meta['proxy'])
+        # try with a new proxy
+        self.log('restart from the failed url {}'.format(failure.request.url), level=logging.INFO)
+        yield scrapy.Request(
+            url=failure.request.url,
+            callback=self.parse,
+            # try a new proxy
+            meta={'proxy': POOL.get()},
+            errback=self.handle_failure)
