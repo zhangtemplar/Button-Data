@@ -13,7 +13,7 @@ from scrapy.crawler import CrawlerProcess
 
 
 if __name__ == '__main__':
-    process = CrawlerProcess()
+    process = CrawlerProcess(settings={'LOG_LEVEL': 'INFO'})
     process.crawl(PedataMaSpider)
     process.crawl(PedataExitSpider)
     process.crawl(PedataIpoSpider)

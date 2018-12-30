@@ -6,7 +6,7 @@ __email__ = "zhangtemplar@gmail.com"
 Add documentation of this module here.
 """
 
-from time import time
+from time import time, sleep
 import random
 import logging
 
@@ -62,9 +62,9 @@ class ExpirationSet(object):
 
         :return: the data if available, otherwise None
         """
-        if len(self.data.keys()) < 1:
+        while len(self.data.keys()) < 1:
             logging.warning('the pool is empty now')
-            return None
+            sleep(5 * random.random())
         key = random.choice(list(self.data.keys()))
         # increase the count
         self.data[key][1] += 1
@@ -76,9 +76,9 @@ class ExpirationSet(object):
 
         :return: the data if available, otherwise None
         """
-        if len(self.data.keys()) < 1:
+        while len(self.data.keys()) < 1:
             logging.warning('the pool is empty now')
-            return None
+            sleep(5 * random.random())
         key = random.choice(list(self.data.keys()))
         del self.data[key]
         return key
