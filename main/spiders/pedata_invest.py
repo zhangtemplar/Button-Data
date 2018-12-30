@@ -20,8 +20,13 @@ class PedataInvestSpider(PedataSpider):
 
     @staticmethod
     def format_url(arguments):
-        return 'https://invest.pedata.cn/list_{}_0_{}_0_{}.html'.format(
-            arguments.get('page', 1), arguments['industry'], arguments['year'])
+        return 'https://invest.pedata.cn/list_{}_0_{}_{}_{}.html'.format(
+            arguments.get('page', 1), arguments['industry'], arguments['stage'], arguments['year'])
+
+    @staticmethod
+    def decode_url(url: str):
+        arguments = url.split('/')[-1].split('.')[0].split('_')
+        return {'page': int(arguments[1]), 'industry': arguments[3], 'stage': arguments[4], 'year': arguments[5]}
 
     def start_requests(self):
         for url in self.start_urls:

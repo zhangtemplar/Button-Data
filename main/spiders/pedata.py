@@ -50,8 +50,7 @@ class PedataSpider(ButtonSpider):
         :param url:
         :return: {str:str}
         """
-        arguments = url.split('/')[-1].split('.')[0].split('_')
-        return {'page': int(arguments[1]), 'industry': arguments[3], 'stage': arguments[4], 'year': arguments[5]}
+        raise NotImplementedError()
 
     @staticmethod
     def valid_url(url: str) -> bool:

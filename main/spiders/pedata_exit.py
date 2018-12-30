@@ -23,6 +23,11 @@ class PedataExitSpider(PedataSpider):
         return 'https://exit.pedata.cn/list_{}_0_{}_0_{}.html'.format(
             arguments.get('page', 1), arguments['industry'], arguments['year'])
 
+    @staticmethod
+    def decode_url(url: str):
+        arguments = url.split('/')[-1].split('.')[0].split('_')
+        return {'page': int(arguments[1]), 'industry': arguments[3], 'year': arguments[5]}
+
     def start_requests(self):
         for url in self.start_urls:
             for industry in self.industry:
