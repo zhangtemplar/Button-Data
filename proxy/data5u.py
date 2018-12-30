@@ -22,6 +22,7 @@ class GetProxyThread(threading.Thread):
         self.delay_second = 5
         self.api_url = "http://api.ip.data5u.com/dynamic/get.html?order=7d8a85dd7a1f85cc74e8140fa3711848"
         self.token = ','
+        self.started = False
         self.running = threading.Event()
         self.running.set()
 
@@ -41,6 +42,14 @@ class GetProxyThread(threading.Thread):
         Closes the thread
         """
         self.running.clear()
+
+    def start(self):
+        if self.started:
+            logging.warning('already started')
+            return
+        super().start()
+        self.started = True
+
 
 PROXY_THREAD = GetProxyThread()
 
