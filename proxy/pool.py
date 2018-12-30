@@ -70,5 +70,18 @@ class ExpirationSet(object):
         self.data[key][1] += 1
         return key
 
+    def pop(self):
+        """
+        Pops a data from the pool.
+
+        :return: the data if available, otherwise None
+        """
+        if len(self.data.keys()) < 1:
+            logging.warning('the pool is empty now')
+            return None
+        key = random.choice(list(self.data.keys()))
+        del self.data[key]
+        return key
+
 
 POOL = ExpirationSet(300)

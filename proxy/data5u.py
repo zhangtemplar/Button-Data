@@ -11,6 +11,7 @@ import time
 import threading
 from proxy.pool import POOL
 import logging
+import atexit
 
 
 class GetProxyThread(threading.Thread):
@@ -40,3 +41,7 @@ class GetProxyThread(threading.Thread):
         Closes the thread
         """
         self.running.clear()
+
+PROXY_THREAD = GetProxyThread()
+
+atexit.register(lambda _: PROXY_THREAD.close())

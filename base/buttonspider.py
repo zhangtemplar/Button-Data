@@ -10,7 +10,7 @@ import time
 
 import scrapy
 
-from proxy.data5u import GetProxyThread
+from proxy.data5u import PROXY_THREAD
 from proxy.pool import POOL
 
 
@@ -21,16 +21,10 @@ class ButtonSpider(scrapy.Spider):
         super(scrapy.Spider, self).__init__()
         self.with_proxy = with_proxy
         if self.with_proxy:
-            self.proxyThread = GetProxyThread()
+            self.proxyThread = PROXY_THREAD
             self.proxyThread.start()
             # wait for 10 seconds to build the pool
             time.sleep(10)
-
-    @staticmethod
-    def close(spider, reason):
-        proxyThread = spider.__getattribute__('proxyThread')
-        if proxyThread is not None:
-            spider.proxyThread.close()
 
     def handle_failure(self, failure):
         self.log('fail to collect {}\n{}'.format(failure.request.url, failure), level=logging.ERROR)
