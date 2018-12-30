@@ -18,13 +18,11 @@ class PedataInvestSpider(PedataSpider):
         u'机构名称': 0, u'企业名称': 1, u'所属行业': 2, u'企业标签': 3, u'投资轮次': 4, u'投资金额': 5, u'投资时间': 6,
         u'详情': 7}
 
-    @staticmethod
-    def format_url(arguments):
+    def format_url(self, arguments):
         return 'https://invest.pedata.cn/list_{}_0_{}_{}_{}.html'.format(
             arguments.get('page', 1), arguments['industry'], arguments['stage'], arguments['year'])
 
-    @staticmethod
-    def decode_url(url: str):
+    def decode_url(self, url: str):
         arguments = url.split('/')[-1].split('.')[0].split('_')
         return {'page': int(arguments[1]), 'industry': arguments[3], 'stage': arguments[4], 'year': arguments[5]}
 

@@ -18,13 +18,11 @@ class PedataExitSpider(PedataSpider):
         u'退出企业': 0, u'退出机构': 1, u'资本类型': 2, u'回报金额': 3, u'回报倍数': 4, u'退出方式': 5, u'退出时间': 6,
         u'详情': 7}
 
-    @staticmethod
-    def format_url(arguments):
+    def format_url(self, arguments):
         return 'https://exit.pedata.cn/list_{}_0_{}_0_{}.html'.format(
             arguments.get('page', 1), arguments['industry'], arguments['year'])
 
-    @staticmethod
-    def decode_url(url: str):
+    def decode_url(self, url: str):
         arguments = url.split('/')[-1].split('.')[0].split('_')
         return {'page': int(arguments[1]), 'industry': arguments[3], 'year': arguments[5]}
 

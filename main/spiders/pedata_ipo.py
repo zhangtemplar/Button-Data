@@ -18,13 +18,11 @@ class PedataIpoSpider(PedataSpider):
         u'上市企业': 0, u'股票代码': 1, u'上市时间': 2, u'交易所': 3, u'行业': 4, u'地区': 5, u'主办券商': 6,
         u'VC/PE支持': 7, u'详情': 8}
 
-    @staticmethod
-    def format_url(arguments):
+    def format_url(self, arguments):
         return 'https://ipo.pedata.cn/list_{}_0_0_{}_{}.html'.format(
             arguments.get('page', 1), arguments['industry'], arguments['year'])
 
-    @staticmethod
-    def decode_url(url: str):
+    def decode_url(self, url: str):
         arguments = url.split('/')[-1].split('.')[0].split('_')
         return {'page': int(arguments[1]), 'industry': arguments[4], 'year': arguments[5]}
 

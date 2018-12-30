@@ -30,8 +30,7 @@ class PedataSpider(ButtonSpider):
         if not os.path.exists(self.work_directory):
             os.mkdir(self.work_directory)
 
-    @staticmethod
-    def format_url(arguments: dict) -> str:
+    def format_url(self, arguments: dict) -> str:
         """
         Formats an url for crawl from arguments.
 
@@ -42,8 +41,7 @@ class PedataSpider(ButtonSpider):
         """
         raise NotImplementedError()
 
-    @staticmethod
-    def decode_url(url: str) -> (str, str, int):
+    def decode_url(self, url: str) -> (str, str, int):
         """
         Decodes industry, stage and page from the url.
 
@@ -52,15 +50,14 @@ class PedataSpider(ButtonSpider):
         """
         raise NotImplementedError()
 
-    @staticmethod
-    def valid_url(url: str) -> bool:
+    def valid_url(self, url: str) -> bool:
         """
         Validates an url.
 
         :param url: url
         :return: True if the url is a valid url for crawl
         """
-        arguments = PedataSpider.decode_url(url)
+        arguments = self.decode_url(url)
         return arguments['year'] in PedataSpider.year
 
     def apply_filter(self, response: scrapy.http.Response) -> scrapy.Request:
