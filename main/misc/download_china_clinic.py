@@ -11,6 +11,7 @@ import random
 import threading
 import time
 import json
+from bs4 import BeautifulSoup
 
 from selenium import webdriver
 from selenium.webdriver import DesiredCapabilities
@@ -52,14 +53,14 @@ class DownloadChinaClinic(threading.Thread):
         driver = self.get_webdriver()
         while index < len(self.links) and self.running.is_set():
             link = self.links[index]
-            logging.INFO('process link {}'.format(link))
+            logging.info('process link {}'.format(link))
             try:
                 driver.get(link)
                 index += 1
                 time.sleep(5 * random.random())
             except Exception as e:
-                logging.ERROR(e)
-                logging.WARNING('fail to download {}'.format(link))
+                logging.error(e)
+                logging.warning('fail to download {}'.format(link))
                 try:
                     driver.close()
                 finally:
@@ -68,16 +69,32 @@ class DownloadChinaClinic(threading.Thread):
     def close(self):
         self.running.clear()
 
+def find_url():
+    work_directory = os.path.expanduser('~/Downloads/clinic')
+    links = []
+    for file in os.listdir(work_directory):
+        if not file.endswith('.html'):
+            continue
+        print('process file {}'.format(file))
+        with open(os.path.join(work_directory, file), 'r') as fi:
+            soup = BeautifulSoup(fi.read(), 'html.parser')
+            link = soup.select_one('.ProjetInfo_title > a').get('href')
+            print('find link {}'.format(link))
+            links.append(link)
+    with open(os.path.join(work_directory, 'links.json'), 'w') as fo:
+        json.dump(links, fo)
+
+
 def download_china_clinic():
     work_directory = os.path.expanduser('~/Downloads/clinic')
-    with open(os.path.join(work_directory, 'clinic.json'), 'r') as fi:
+    with open(os.path.join(work_directory, 'links.json'), 'r') as fi:
         links = json.load(fi)
-    links = ['http://www.chictr.org.cn/' + l['xml'] for l in links if l['xml'] is not None]
-    logging.INFO('{} links are found'.format(links))
+    links = ['http://www.chictr.org.cn/' + l for l in links]
+    logging.info('{} links are found'.format(links))
     number_threads = 16
     threads = []
     for t in range(number_threads):
-        logging.INFO('create new thread {}'.format(t))
+        logging.info('create new thread {}'.format(t))
         thread = DownloadChinaClinic([links[i] for i in range(t, len(links), number_threads)], work_directory)
         thread.run()
         threads.append(thread)
@@ -85,3 +102,7 @@ def download_china_clinic():
 
     for t in threads:
         t.join()
+
+
+if __name__ == '__main__':
+    find_url()
