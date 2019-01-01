@@ -17,6 +17,7 @@ from selenium import webdriver
 from selenium.webdriver import DesiredCapabilities
 
 from proxy.pool import POOL
+from proxy.data5u import PROXY_THREAD
 
 
 class DownloadChinaClinic(threading.Thread):
@@ -41,16 +42,24 @@ class DownloadChinaClinic(threading.Thread):
                 "download.default_directory": self.work_directory,
             })
         # we could create a new driver.
-        option.add_argument("--proxy-server=http://{}".format(POOL.pop()))
+        option.add_argument("--proxy-server={}".format(POOL.pop()))
         option.add_argument("--headless")
-        return webdriver.Chrome(
+        driver = webdriver.Chrome(
             os.path.expanduser('~/chromedriver'),
             desired_capabilities=capacity,
-            chrome_options=option)
+            options=option)
+        # add missing support for chrome "send_command"  to selenium webdriver
+        driver.command_executor._commands["send_command"] = ("POST", '/session/$sessionId/chromium/send_command')
+        params = {
+            'cmd': 'Page.setDownloadBehavior',
+            'params': {'behavior': 'allow', 'downloadPath': self.work_directory}}
+        command_result = driver.execute("send_command", params)
+        return driver
 
     def run(self):
         index = 0
         driver = self.get_webdriver()
+        self.running.set()
         while index < len(self.links) and self.running.is_set():
             link = self.links[index]
             logging.info('process link {}'.format(link))
@@ -86,23 +95,27 @@ def find_url():
 
 
 def download_china_clinic():
+    logging.basicConfig(level=logging.INFO)
     work_directory = os.path.expanduser('~/Downloads/clinic')
     with open(os.path.join(work_directory, 'links.json'), 'r') as fi:
         links = json.load(fi)
     links = ['http://www.chictr.org.cn/' + l for l in links]
-    logging.info('{} links are found'.format(links))
+    logging.info('{} links are found'.format(len(links)))
     number_threads = 16
     threads = []
+    PROXY_THREAD.start()
+    time.sleep(5)
     for t in range(number_threads):
         logging.info('create new thread {}'.format(t))
         thread = DownloadChinaClinic([links[i] for i in range(t, len(links), number_threads)], work_directory)
-        thread.run()
+        thread.start()
         threads.append(thread)
         time.sleep(5)
 
     for t in threads:
         t.join()
+    PROXY_THREAD.close()
 
 
 if __name__ == '__main__':
-    find_url()
+    download_china_clinic()

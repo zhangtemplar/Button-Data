@@ -53,4 +53,4 @@ class GetProxyThread(threading.Thread):
 
 PROXY_THREAD = GetProxyThread()
 
-atexit.register(lambda _: PROXY_THREAD.close())
+atexit.register(lambda: PROXY_THREAD.close())
