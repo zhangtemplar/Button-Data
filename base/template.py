@@ -29,6 +29,7 @@ def create_user():
         "type": 1,
         "logo": "https://buttondata.oss-cn-shanghai.aliyuncs.com/user.png",
         "ref": "",
+        "abs": "",
         "name": "",
         "srcId": "000000000000000000000000",
         "addr": {"country": "", "line2": "", "city": "", "zip": "", "state": "", "line1": ""},
