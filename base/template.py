@@ -44,6 +44,39 @@ def create_user():
     }
 
 
+def create_company():
+    return {
+        "type": 1,
+        "logo": "https://buttondata.oss-cn-shanghai.aliyuncs.com/user.png",
+        "ref": "",
+        "name": "",
+        "srcId": "000000000000000000000000",
+        "addr": {"country": "", "line2": "", "city": "", "zip": "", "state": "", "line1": ""},
+        "contact": {"website": "", "meet": "", "email": "", "phone": ""},
+        "intro": "",
+        "group": {
+            'parentId': "",
+            'mgrId': [],
+            'memberId': [],
+        },
+        "entr": {
+            "bp": "",
+            "demand": {
+                "stage": 11,
+                "amount": {"amount": 0, "unit": "USD"},
+                "val": {"amount": 0, "unit": "USD"},
+                "share": 0,
+                "due": "",
+            },
+            "fin": "",
+            "market": "",
+            "tech": "",
+            "grant": "",
+        },
+        "tag": []
+    }
+
+
 def create_product():
     return {
         "type": 8,

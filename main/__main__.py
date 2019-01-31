@@ -7,19 +7,14 @@ Add documentation of this module here.
 """
 
 from scrapy.crawler import CrawlerProcess
+from scrapy.utils.project import get_project_settings
 
-from main.spiders.pedata_exit import PedataExitSpider
-from main.spiders.pedata_invest import PedataInvestSpider
-from main.spiders.pedata_ipo import PedataIpoSpider
-from main.spiders.pedata_ma import PedataMaSpider
+from main.spiders.cfda import CfdaSpider
 
 
 def crawl_pedata():
-    process = CrawlerProcess(settings={'LOG_LEVEL': 'INFO'})
-    process.crawl(PedataMaSpider)
-    process.crawl(PedataExitSpider)
-    process.crawl(PedataIpoSpider)
-    process.crawl(PedataInvestSpider)
+    process = CrawlerProcess(settings=get_project_settings())
+    process.crawl(CfdaSpider)
     process.start()
 
 if __name__ == '__main__':
