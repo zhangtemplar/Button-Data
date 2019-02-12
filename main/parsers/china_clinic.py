@@ -1,4 +1,6 @@
 # coding=utf-8
+from base.util import dictionary_to_markdown, remove_blank, parse_address
+
 __author__ = "Qiang Zhang"
 __maintainer__ = "Qiang Zhang"
 __email__ = "zhangtemplar@gmail.com"
@@ -8,7 +10,6 @@ Add documentation of this module here.
 import json
 import logging
 import os
-import re
 import copy
 from lxml import etree
 from base.template import create_product, create_user
@@ -84,57 +85,6 @@ def parse_html(file):
 
     product['addr'] = copy.deepcopy(applicant['addr'])
     return {'product': product, 'applicant': applicant, 'principal_investigator': principal_investigator}
-
-
-def parse_address(text):
-    segments = text.split(", ")
-    address = {"country": "", "line2": "", "city": "", "zip": "", "state": "", "line1": ""}
-    if len(segments) == 1:
-        address['line1'] = text
-        address['city'] = 'Unknown'
-        address['country'] = 'China'
-    else:
-        address['country'] = segments[-1]
-        if len(segments) > 4:
-            address['city'] = segments[-3]
-            address['state'] = segments[-2]
-        else:
-            address['city'] = segments[-2]
-        address['line1'] = segments[0]
-        address['line2'] = segments[1]
-    return address
-
-
-def list_to_table(data):
-    if len(data) < 1:
-        return ''
-    keys = sorted(data[0].keys())
-    result = ' | '.join(keys)
-    result += '\n'
-    result += ' | '.join(['---' for _ in keys])
-    for d in data:
-        result += '\n'
-        result += ' | '.join([d[k] for k in keys])
-    return result
-
-
-def dictionary_to_markdown(data: dict, keys=None):
-    if keys is None:
-        keys = data.keys()
-    result = ''
-    for k in keys:
-        if k not in data:
-            continue
-        if isinstance(data[k], list):
-            result += '# {}\n\n{}\n\n'.format(k, list_to_table(data[k]))
-        else:
-            result += '# {}\n\n{}\n\n'.format(k, data[k])
-    return result
-
-
-def remove_blank(text):
-    match = re.findall(r'\S[\s\S]*\S', text, re.UNICODE)
-    return match[0] if len(match) > 0 else ''
 
 
 def remove_tail_colon(text):
