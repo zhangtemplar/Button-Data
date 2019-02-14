@@ -12,11 +12,23 @@ import logging
 import os
 import copy
 from lxml import etree
+from dateutil import parser
 from base.template import create_product, create_user
 
 
 def remove_empty_string(tags):
     return [i for i in tags if len(i) > 0]
+
+
+def map_status(status):
+    if status == 'Recruiting':
+        return 1
+    elif status == 'Pending':
+        return 3
+    elif status == 'Temporary halt':
+        return 3
+    else:
+        return 2
 
 
 def parse_html(file):
@@ -26,7 +38,7 @@ def parse_html(file):
     data_chinese = parse(document, 'en')
     product['name'] = data_chinese[u'注册题目']
     product['abs'] = data_chinese[u'研究目的']
-    product['asset']['stat'] = data_english['Recruiting status']
+    product['asset']['stat'] = map_status(data_english['Recruiting status'])
     product['intro'] = data_chinese['药物成份或治疗方案详述']
     href = document.xpath("//body/div[4]/div[2]/a")
     product['ref'] = 'http://www.chictr.org.cn/' + (href[0].attrib['href'] if len(href) > 0 else '')
@@ -49,6 +61,14 @@ def parse_html(file):
     product['asset']['lic'] = remove_empty_string(product['asset']['lic'])
 
     product['asset']['type'] = 2
+    try:
+        product['created'] = parser.parse(data_english['Date of Registration']).strftime("%a, %d %b %Y %H:%M:%S GMT")
+    except:
+        pass
+    try:
+        product['updated'] = parser.parse(data_english['Date of Last Refreshed on']).strftime("%a, %d %b %Y %H:%M:%S GMT")
+    except:
+        pass
     product['asset']['tech'] = dictionary_to_markdown(
         data_english,
         ['Study design', 'Inclusion criteria', 'Exclusion criteria', 'Study execute time', 'Interventions',
@@ -69,6 +89,7 @@ def parse_html(file):
 
     applicant = create_user()
     applicant['name'] = data_chinese[u'申请注册联系人']
+    applicant['abs'] = 'Applicant'
     applicant['contact']['phone'] = data_chinese[u'申请注册联系人电话']
     applicant['contact']['email'] = data_chinese[u'申请注册联系人电子邮件']
     applicant['contact']['website'] = data_chinese[u'申请单位网址(自愿提供)']
@@ -77,6 +98,7 @@ def parse_html(file):
     applicant['exp']['exp']['company'] = data_chinese[u'申请人所在单位']
     principal_investigator = create_user()
     principal_investigator['name'] = data_chinese[u'研究负责人']
+    principal_investigator['abs'] = 'Principal Investigator'
     principal_investigator['contact']['phone'] = data_chinese[u'研究负责人电话']
     principal_investigator['contact']['email'] = data_chinese[u'研究负责人电子邮件']
     principal_investigator['contact']['website'] = data_chinese[u'研究负责人网址(自愿提供)']
@@ -133,23 +155,27 @@ def parse(document, language):
     return data
 
 
-def download_china_clinic():
+def parse_china_clinic():
     logging.basicConfig(level=logging.INFO)
     work_directory = os.path.expanduser('~/Downloads/clinic')
+    result = []
     for file in os.listdir(work_directory):
         if not file.endswith('html'):
             continue
-        if os.path.exists(os.path.join(work_directory, file[:-len('html')] + 'json')):
-            continue
+        # if os.path.exists(os.path.join(work_directory, file[:-len('html')] + 'json')):
+        #     continue
         logging.info('process {}'.format(file))
         try:
             data = parse_html(os.path.join(work_directory, file))
-            with open(os.path.join(work_directory, file[:-len('html')] + 'json'), 'w') as fo:
-                json.dump(data, fo, ensure_ascii=False)
+            result.append(data)
+            # with open(os.path.join(work_directory, file[:-len('html')] + 'json'), 'w') as fo:
+            #     json.dump(data, fo, ensure_ascii=False)
         except Exception as e:
             logging.error('failed to process {}'.format(file))
             logging.error(e)
+    with open(os.path.join(work_directory, 'china_clinic_trial.json'), 'w') as fo:
+        json.dump(result, fo, ensure_ascii=False)
 
 
 if __name__ == '__main__':
-    download_china_clinic()
+    parse_china_clinic()
