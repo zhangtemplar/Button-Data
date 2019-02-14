@@ -9,6 +9,7 @@ import json
 import logging
 import os
 from multiprocessing import Pool
+from dateutil import parser
 
 import xmltodict
 
@@ -92,6 +93,10 @@ class ClinicalTrial(object):
         if 'degrees' in data:
             if not user.title:
                 user['edu']['degree'] = data['degrees']
+        if len(user['name']) < 0:
+            user['name'] = user['contact']['email'] if len(user['contact']['email']) > 0 else 'Anonymous'
+        if len(user['abs']) < 0:
+            user['abs'] = 'Principal Investigator'
         return user
 
     @staticmethod
@@ -262,11 +267,23 @@ class ClinicalTrial(object):
             del trial['overall_contact']
         # type
         product['tag'] = self._find_type(trial)
+        try:
+            product['created'] = parser.parse(trial['study_first_submitted']).strftime("%a, %d %b %Y %H:%M:%S GMT")
+        except:
+            pass
+        try:
+            product['updated'] = parser.parse(trial['last_update_submitted']).strftime("%a, %d %b %Y %H:%M:%S GMT")
+        except:
+            pass
         # stage
         product['asset']['stat'] = self._get_status(trial)
         # for other details
         del trial['overall_status']
         product['asset']['tech'] = "\n\n".join(self.to_markdown(trial))
+        for s in sponsors:
+            s['ref'] = product['ref']
+        for u in users:
+            u['ref'] = product['ref']
         return {'product': product, 'sponsors': sponsors, 'users': users}
 
     @staticmethod
@@ -300,7 +317,6 @@ if __name__ == '__main__':
     sourceDirectory = "/Users/zhangtemplar/Downloads/clinictrial"
     dirList = [os.path.join(sourceDirectory, folder) for folder in os.listdir(sourceDirectory) if
                folder.startswith("NCT")]
-
     pool = Pool(8)
     for index in dirList:
         pool.apply_async(task, args=(index,))

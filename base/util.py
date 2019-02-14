@@ -50,3 +50,13 @@ def parse_address(text):
         address['line1'] = segments[0]
         address['line2'] = segments[1]
     return address
+
+def normalize_email(input):
+    for m in re.finditer(r'(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})', input):
+        return m.group()
+    return ''
+
+def normalize_phone(input):
+    for m in re.finditer(r'^[0-9+\-\ \.]{10,}', input):
+        return m.group()
+    return ''
