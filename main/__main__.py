@@ -9,12 +9,12 @@ Add documentation of this module here.
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
-from main.spiders.cfda import CfdaSpider
+from main.spiders.eu_drug_approval import EuDrugApprovalSpider
 
 
 def crawl_pedata():
     process = CrawlerProcess(settings=get_project_settings())
-    process.crawl(CfdaSpider)
+    process.crawl(EuDrugApprovalSpider)
     process.start()
 
 if __name__ == '__main__':
