@@ -9,6 +9,7 @@ from scrapy.http.response import Response
 from base.template import create_product, create_company
 from base.util import dictionary_to_markdown
 from main.spiders.eu_drug import EuDrugSpider
+from proxy.pool import POOL
 
 
 class EuDrugApprovalSpider(EuDrugSpider):
@@ -28,7 +29,7 @@ class EuDrugApprovalSpider(EuDrugSpider):
         'URL')
 
     def __init__(self):
-        super().__init__(False)
+        super().__init__(True)
         self.work_directory = os.path.expanduser('~/Downloads/eu/')
         if os.path.exists(os.path.join(self.work_directory, 'approval.json')):
             self.data = json.load(open(os.path.join(self.work_directory, 'approval.json'), 'r'))
@@ -43,7 +44,9 @@ class EuDrugApprovalSpider(EuDrugSpider):
                     continue
                 columns = {}
                 for key, value in zip(self.headers, row):
-                    if isinstance(value.value, datetime):
+                    if value.value is None:
+                        columns[key] = ''
+                    elif isinstance(value.value, datetime):
                         columns[key] = value.value.strftime("%a, %d %b %Y %H:%M:%S GMT")
                     else:
                         columns[key] = value.value
@@ -53,11 +56,15 @@ class EuDrugApprovalSpider(EuDrugSpider):
 
     def start_requests(self):
         for url in self.data.keys():
+            if url is None or not url.startswith('http'):
+                continue
             name = url.split('/')[-1]
             if os.path.exists(os.path.join(self.work_directory, name + '.json')):
                 continue
             yield Request(
                 url=url,
+                meta={'proxy': POOL.get()},
+                errback=self.handle_failure,
                 callback=self.parse)
 
     @staticmethod

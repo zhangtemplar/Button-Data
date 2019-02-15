@@ -9,6 +9,7 @@ from scrapy.http.response import Response
 from base.template import create_product, create_company
 from base.util import dictionary_to_markdown
 from main.spiders.eu_drug import EuDrugSpider
+from proxy.pool import POOL
 
 
 class EuDrugHerbalSpider(EuDrugSpider):
@@ -23,7 +24,7 @@ class EuDrugHerbalSpider(EuDrugSpider):
         'Date added to the priority list', 'First published', 'Revision date', 'URL',)
 
     def __init__(self):
-        super().__init__(False)
+        super().__init__(True)
         self.work_directory = os.path.expanduser('~/Downloads/herbal/')
         if os.path.exists(os.path.join(self.work_directory, 'herbal.json')):
             self.data = json.load(open(os.path.join(self.work_directory, 'herbal.json'), 'r'))
@@ -38,7 +39,9 @@ class EuDrugHerbalSpider(EuDrugSpider):
                     continue
                 columns = {}
                 for key, value in zip(self.headers, row):
-                    if isinstance(value.value, datetime):
+                    if value.value is None:
+                        columns[key] = ''
+                    elif isinstance(value.value, datetime):
                         columns[key] = value.value.strftime("%a, %d %b %Y %H:%M:%S GMT")
                     else:
                         columns[key] = value.value
@@ -48,11 +51,15 @@ class EuDrugHerbalSpider(EuDrugSpider):
 
     def start_requests(self):
         for url in self.data.keys():
+            if url is None or not url.startswith('http'):
+                continue
             name = url.split('/')[-1]
             if os.path.exists(os.path.join(self.work_directory, name + '.json')):
                 continue
             yield Request(
                 url=url,
+                meta={'proxy': POOL.get()},
+                errback=self.handle_failure,
                 callback=self.parse)
 
     @staticmethod
@@ -73,7 +80,8 @@ class EuDrugHerbalSpider(EuDrugSpider):
         p['name'] = data['English common name of herbal substance']
         p['abs'] = data['Botanical name of plant']
         p['tag'] = ["EU", 'Drug', 'Herbal']
-        p['tag'].extend(data['Use'].split(', '))
+        if data['Use'] is not None:
+            p['tag'].extend(data['Use'].split(', '))
         p['website'] = response.url
         p['ref'] = response.url
         if data['Combination'] == 'yes':
@@ -89,8 +97,8 @@ class EuDrugHerbalSpider(EuDrugSpider):
         p['intro'] = '\n'.join(response.xpath(
             "//div[contains(@class, 'field-name-field-ema-web-summary')]/div/div/p/text()").getall())
         p['asset']['market'] = dictionary_to_markdown(self.extract_market(response))
-        p['address']['city'] = 'Unknown'
-        p['address']['country'] = 'EU'
+        p['addr']['city'] = 'Unknown'
+        p['addr']['country'] = 'EU'
         with open(os.path.join(self.work_directory, name + '.json'), 'w') as fo:
             json.dump(p, fo)
 

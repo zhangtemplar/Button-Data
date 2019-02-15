@@ -9,6 +9,7 @@ from scrapy.http.response import Response
 from base.template import create_product, create_company
 from base.util import dictionary_to_markdown
 from main.spiders.eu_drug import EuDrugSpider
+from proxy.pool import POOL
 
 
 class EuDrugWithdrawnSpider(EuDrugSpider):
@@ -23,14 +24,14 @@ class EuDrugWithdrawnSpider(EuDrugSpider):
         'Type of withdrawal', 'Date of withdrawal', 'Species', 'First published', 'Revision date', 'URL',)
 
     def __init__(self):
-        super().__init__(False)
+        super().__init__(True)
         self.work_directory = os.path.expanduser('~/Downloads/withdrawn/')
         if os.path.exists(os.path.join(self.work_directory, 'withdrawn.json')):
             self.data = json.load(open(os.path.join(self.work_directory, 'withdrawn.json'), 'r'))
         else:
             # process the excel to find the url
             book = load_workbook(
-                os.path.expanduser('~/Downloads/Medicines_output_european_public_assessment_reports.xlsx'))
+                os.path.expanduser('~/Downloads/Medicines_output_withdrawn_applications.xlsx'))
             sheet = book.get_sheet_by_name('Worksheet 1')
             self.data = {}
             for index, row in enumerate(sheet.rows):
@@ -38,7 +39,9 @@ class EuDrugWithdrawnSpider(EuDrugSpider):
                     continue
                 columns = {}
                 for key, value in zip(self.headers, row):
-                    if isinstance(value.value, datetime):
+                    if value.value is None:
+                        columns[key] = ''
+                    elif isinstance(value.value, datetime):
                         columns[key] = value.value.strftime("%a, %d %b %Y %H:%M:%S GMT")
                     else:
                         columns[key] = value.value
@@ -48,11 +51,15 @@ class EuDrugWithdrawnSpider(EuDrugSpider):
 
     def start_requests(self):
         for url in self.data.keys():
+            if url is None or not url.startswith('http'):
+                continue
             name = url.split('/')[-1]
             if os.path.exists(os.path.join(self.work_directory, name + '.json')):
                 continue
             yield Request(
                 url=url,
+                meta={'proxy': POOL.get()},
+                errback=self.handle_failure,
                 callback=self.parse)
 
     @staticmethod
@@ -85,7 +92,7 @@ class EuDrugWithdrawnSpider(EuDrugSpider):
             p['tag'].append('Orphan medicine')
         if data['Species'] is not None and len(data['Species']) > 0:
             p['tag'].append('Species')
-        p['updated'] = data['Decision date']
+        p['updated'] = data['Revision date']
         p['created'] = data['First published']
         p['asset']['lic'] = p['tag']
         p['asset']['stat'] = 3
@@ -95,14 +102,14 @@ class EuDrugWithdrawnSpider(EuDrugSpider):
         p['asset']['market'] = dictionary_to_markdown(self.extract_market(response))
         p['asset']['tech'] = dictionary_to_markdown({key: data[key] for key in (
             'Active substance', 'Type of withdrawal', 'Date of withdrawal')})
-        p['address']['city'] = 'Unknown'
-        p['address']['country'] = 'EU'
+        p['addr']['city'] = 'Unknown'
+        p['addr']['country'] = 'EU'
 
         a = create_company()
         a['name'] = data['Marketing authorisation holder/company name']
         a['abs'] = 'A Medicine Company'
-        a['address']['city'] = 'Unknown'
-        a['address']['country'] = 'EU'
+        a['addr']['city'] = 'Unknown'
+        a['addr']['country'] = 'EU'
         a['entr']['bp'] = response.xpath(
             "//div[contains(@class, 'views-field-view-2')]/span/li/a/@href").get()
         with open(os.path.join(self.work_directory, name + '.json'), 'w') as fo:

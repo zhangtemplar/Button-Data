@@ -34,7 +34,7 @@ class GetProxyThread(threading.Thread):
             proxy = requests.get(self.api_url).content.decode().split(self.token)
             logging.debug('add new proxy {} to pool'.format(proxy))
             for p in proxy:
-                POOL.add('http://' + p[:-1])
+                POOL.add('http://' + p[:-1], 300)
             time.sleep(self.delay_second)
 
     def close(self):

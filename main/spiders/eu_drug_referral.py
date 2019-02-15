@@ -9,6 +9,7 @@ from scrapy.http.response import Response
 from base.template import create_product, create_company
 from base.util import dictionary_to_markdown
 from main.spiders.eu_drug import EuDrugSpider
+from proxy.pool import POOL
 
 
 class EuDrugReferralSpider(EuDrugSpider):
@@ -24,14 +25,14 @@ class EuDrugReferralSpider(EuDrugSpider):
         'CHMP opinion / CMDh position date', 'EC decision date', 'First published', 'Revision date', 'URL',)
 
     def __init__(self):
-        super().__init__(False)
-        self.work_directory = os.path.expanduser('~/Downloads/eu/')
+        super().__init__(True)
+        self.work_directory = os.path.expanduser('~/Downloads/referral/')
         if os.path.exists(os.path.join(self.work_directory, 'referral.json')):
             self.data = json.load(open(os.path.join(self.work_directory, 'referral.json'), 'r'))
         else:
             # process the excel to find the url
             book = load_workbook(
-                os.path.expanduser('~/Downloads/Medicines_output_european_public_assessment_reports.xlsx'))
+                os.path.expanduser('~/Downloads/Medicines_output_referrals.xlsx'))
             sheet = book.get_sheet_by_name('Worksheet 1')
             self.data = {}
             for index, row in enumerate(sheet.rows):
@@ -39,7 +40,9 @@ class EuDrugReferralSpider(EuDrugSpider):
                     continue
                 columns = {}
                 for key, value in zip(self.headers, row):
-                    if isinstance(value.value, datetime):
+                    if value.value is None:
+                        columns[key] = ''
+                    elif isinstance(value.value, datetime):
                         columns[key] = value.value.strftime("%a, %d %b %Y %H:%M:%S GMT")
                     else:
                         columns[key] = value.value
@@ -49,16 +52,22 @@ class EuDrugReferralSpider(EuDrugSpider):
 
     def start_requests(self):
         for url in self.data.keys():
+            if url is None or not url.startswith('http'):
+                continue
             name = url.split('/')[-1]
             if os.path.exists(os.path.join(self.work_directory, name + '.json')):
                 continue
             yield Request(
                 url=url,
+                meta={'proxy': POOL.get()},
+                errback=self.handle_failure,
                 callback=self.parse)
 
     @staticmethod
     def status_code(code):
-        if 'final' in code:
+        if code is None:
+            return 1
+        elif 'final' in code:
             return 2
         else:
             return 1
@@ -73,7 +82,7 @@ class EuDrugReferralSpider(EuDrugSpider):
         p['abs'] = data['International non-proprietary name (INN) / common name']
         p['name'] = data['Referral name']
         p['asset']['stat'] = self.status_code(data['Status of referral'])
-        p['updated'] = data['Decision date']
+        p['updated'] = data['Revision date']
         p['created'] = data['First published']
         p['website'] = response.url
         p['ref'] = response.url
@@ -86,8 +95,8 @@ class EuDrugReferralSpider(EuDrugSpider):
         p['intro'] = '\n'.join(response.xpath(
             "//div[contains(@class, 'field-name-field-ema-web-summary')]/div/p/text()").getall())
         p['asset']['market'] = dictionary_to_markdown(self.extract_market(response))
-        p['address']['city'] = 'Unknown'
-        p['address']['country'] = 'EU'
+        p['addr']['city'] = 'Unknown'
+        p['addr']['country'] = 'EU'
         with open(os.path.join(self.work_directory, name + '.json'), 'w') as fo:
             json.dump(p, fo)
 
