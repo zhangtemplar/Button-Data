@@ -5,7 +5,7 @@ __email__ = "zhangtemplar@gmail.com"
 """
 Add documentation of this module here.
 """
-
+import requests
 
 def create_relationship():
     return {
@@ -47,7 +47,7 @@ def create_user():
 
 def create_company():
     return {
-        "type": 1,
+        "type": 2,
         "logo": "https://buttondata.oss-cn-shanghai.aliyuncs.com/user.png",
         "ref": "",
         "name": "",
@@ -55,11 +55,6 @@ def create_company():
         "addr": {"country": "", "line2": "", "city": "", "zip": "", "state": "", "line1": ""},
         "contact": {"website": "", "meet": "", "email": "", "phone": ""},
         "intro": "",
-        "group": {
-            'parentId': "",
-            'mgrId': [],
-            'memberId': [],
-        },
         "entr": {
             "bp": "",
             "demand": {
@@ -102,3 +97,12 @@ def create_product():
             'type': 0,
         }
     }
+
+
+
+def add_record(resource, data):
+    try:
+        return requests.post('http://172.17.0.7/' + resource, json=data).json()
+    except Exception as e:
+        print(e)
+        return {'_status': 'Err'}

@@ -89,7 +89,7 @@ class EuDrugApprovalSpider(EuDrugSpider):
         p['tag'] = [data['Category'] + ' Medicine', 'EU', 'Drug']
         if data['Therapeutic area'] is not None:
             p['tag'].extend(data['Therapeutic area'].split(", "))
-        p['website'] = response.url
+        p['contact']['website'] = response.url
         p['ref'] = response.url
         if data['Patient safety'] == 'no':
             p['tag'].append('Patient Risk')

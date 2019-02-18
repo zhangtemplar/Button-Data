@@ -1,4 +1,5 @@
 import re
+import logging
 
 
 def dictionary_to_markdown(data: dict, keys=None):
@@ -51,12 +52,31 @@ def parse_address(text):
         address['line2'] = segments[1]
     return address
 
+
 def normalize_email(input):
-    for m in re.finditer(r'(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})', input):
+    for m in re.finditer(
+            r'(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})',
+            input):
         return m.group()
     return ''
+
 
 def normalize_phone(input):
     for m in re.finditer(r'^[0-9+\-\ \.]{10,}', input):
         return m.group()
     return ''
+
+
+def create_logger(name):
+    log = logging.getLogger(name)
+    log.handlers = []
+    log.setLevel(logging.DEBUG)
+    log.addHandler(logging.FileHandler(name))
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.WARNING)
+    log.addHandler(stream_handler)
+    return log
+
+
+def remove_empty_string_from_array(array):
+    return list(set([a for a in array if len(a) > 0]))
