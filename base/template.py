@@ -7,6 +7,7 @@ Add documentation of this module here.
 """
 import requests
 
+
 def create_relationship():
     return {
         "url": "",

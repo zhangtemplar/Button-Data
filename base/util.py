@@ -86,7 +86,7 @@ def remove_empty_string_from_array(array):
     return list(set([a for a in array if len(a) > 0]))
 
 
-def chinese_address_decode(text: str) -> dict or None:
+def parse_chinese_address(text: str) -> dict or None:
     """
     Use 高德地图地理/逆地理编码 to parse chinese address
     :param text: a free form chinese address
@@ -101,8 +101,8 @@ def chinese_address_decode(text: str) -> dict or None:
                 'country': 'China',
                 'state': response['geocodes'][0]['province'],
                 'zip': response['geocodes'][0]['adcode'],
-                'line1': response['geocodes'][0]['street'] + ' ' + response['geocodes'][0]['number'],
-                'line2': response['geocodes'][0]['district'] + ' ' + response['geocodes'][0]['township'],
+                'line1': ''.join(response['geocodes'][0]['street']) + ' ' + ''.join(response['geocodes'][0]['number']),
+                'line2': response['geocodes'][0]['district'] + ' ' + ''.join(response['geocodes'][0]['township']),
             }
     except Exception as e:
         traceback.print_tb(e.__traceback__)
