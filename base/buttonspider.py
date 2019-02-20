@@ -40,7 +40,7 @@ class ButtonSpider(scrapy.Spider):
         :param response: response object
         :return: WebDriver
         """
-        response.meta.get('driver', None)
+        return response.meta.get('driver', None)
 
     def handle_failure_selenium(self, failure):
         self.log('fail to collect {}\n{}'.format(failure.request.url, failure), level=logging.ERROR)
