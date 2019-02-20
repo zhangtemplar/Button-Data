@@ -66,6 +66,7 @@ class UniversityCaliforniaSpider(ButtonSpider):
             yield Request(
                 url=p['link'],
                 callback=self.parse,
+                dont_filter=True,
                 meta={'proxy': POOL.get()},
                 errback=self.handle_failure)
 
