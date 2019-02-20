@@ -11,9 +11,12 @@ import os
 import re
 import traceback
 from copy import deepcopy
-
+from datetime import datetime
+from dateutil import parser
 import tabula
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
+from base.template import create_product, create_relationship, create_company, add_record
+from base.util import remove_empty_string_from_array, create_logger
 
 
 def extract_brand_company(text):
@@ -342,6 +345,136 @@ def get_drug(work_directory):
     with open(os.path.join(work_directory, 'japan_drug.json'), 'w') as fo:
         json.dump(drug, fo)
     return drug
+
+
+def parse_device(cells):
+    review_category = {
+        '1': 'Ophthalmology and otorhinolaryngology',
+        '2': 'dentistry',
+        '3': 'cerebral, cardiovascular, respiratory, psychiatric, and neurological field',
+        '3-1': 'Intervention devices mainly in cerebral, cardiovascular, respiratory, psychiatric, and neurological field',
+        '3-2': 'Non-intervention devices mainly in cerebral, cardiovascular, respiratory, psychiatric, and neurological field',
+        '4': 'cerebral, cardiovascular, respiratory, psychiatric, and neurological field',
+        '5': 'gastrointestinal and urinary systems, obstetrics and gynecology',
+        '6': 'orthopedic/plastic surgery and dermatology',
+        '7': 'laboratory tests, in vitro diagnostics',
+        '8': 'multicategory medical devices, advanced electronic medical devices, and other uncategorized medical devices',
+    }
+    p = create_product()
+    p['name'] = cells[4]
+    if isinstance(cells[3], datetime.datetime):
+        p['created'] = cells[3].strftime("%a, %d %b %Y %H:%M:%S GMT")
+    else:
+        try:
+            p['created'] = parser.parse(cells[3]).strftime("%a, %d %b %Y %H:%M:%S GMT")
+        except:
+            pass
+    if isinstance(cells[1], datetime.datetime):
+        p['updated'] = cells[1].strftime("%a, %d %b %Y %H:%M:%S GMT")
+    else:
+        try:
+            p['updated'] = parser.parse(cells[1]).strftime("%a, %d %b %Y %H:%M:%S GMT")
+        except:
+            pass
+    p['tag'] = remove_empty_string_from_array([cells[5], cells[6], 'Japan PMDA', 'Medical Device'])
+    p['asset']['lic'] = p['tag']
+    p['asset']['stat'] = 2
+    p['abs'] = review_category.get(cells[10], cells[10])
+    if len(p['abs']) < 1:
+        p['abs'] = p['name']
+    p['asset']['market'] = cells[9]
+    p['addr']['country'] = 'Japan'
+    p['addr']['city'] = 'Unknown'
+
+    a = create_company()
+    a['name'] = cells[0]
+    a['abs'] = 'A Medical Device Company'
+    a['addr'] = p['addr']
+    a['tag'] = p['tag']
+    return p, a
+
+
+def parse_drug(cells):
+    review_category = {
+        '1': 'Gastrointestinal drugs, dermatologic drugs, immunosuppressive drugs, and others (not classified as other categories)',
+        '2': "Cardiovascular drugs, antiparkinsonian drugs, anti-Alzheimer's drugs",
+        '3-1': 'Central/peripheral nervous system drugs (excluding anesthetic drugs)',
+        '3-2': 'Anesthetic drugs, sensory organ drugs (excluding drugs for inflammatory diseases), narcotics',
+        '4': 'Antibacterial drugs, antiviral drugs (excluding AIDS drugs), antifungal drugs, antiprotozoal drugs, anthelmintic drugs',
+        '5': 'Reproductive system drugs, drugs for urogenital system, combination drugs',
+        '6-1': 'Respiratory tract drugs, anti-allergy drugs (excluding dermatologic drugs), sensory organ drugs (drugs for inflammatory diseases)',
+        '6-2': 'Hormone drugs, drugs for metabolic disorders (including diabetes mellitus, osteoporosis, gout, and inborn errors of metabolism)',
+    }
+    p = create_product()
+    p['name'] = cells[3]
+    if isinstance(cells[2], datetime):
+        p['created'] = cells[2]
+    else:
+        try:
+            p['created'] = parser.parse(cells[2])
+        except:
+            pass
+    category = review_category.get(cells[6], cells[6])
+    p['tag'] = remove_empty_string_from_array([category, 'Japan PMDA', 'Drug'])
+    p['asset']['lic'] = p['tag']
+    p['asset']['stat'] = 2
+    p['asset']['tech'] = cells[0]
+    p['abs'] = cells[5]
+    if len(p['abs']) < 1:
+        p['abs'] = p['name']
+    p['addr']['country'] = 'Japan'
+    p['addr']['city'] = 'Unknown'
+
+    a = create_company()
+    a['name'] = cells[0]
+    a['abs'] = 'A Drug Company'
+    a['addr'] = p['addr']
+    a['tag'] = p['tag']
+    return p, a
+
+
+def upload_to_server(work_directory):
+    book = load_workbook(os.path.join(work_directory, 'japan.xlsx'))
+    log = create_logger('japan-pmda')
+    log.critical(datetime.datetime.now())
+    for sheet_name in ('device', 'drug'):
+        sheet = book.get_sheet_by_name(sheet_name)
+        first_row = True
+        for row in sheet.rows:
+            if first_row:
+                first_row = False
+                continue
+            cells = []
+            for c in row:
+                if isinstance(c.value, str):
+                    cells.append(replace_carriage(c.value))
+                elif c.value is None:
+                    cells.append('')
+                else:
+                    cells.append(c.value)
+            if sheet_name == 'device':
+                p, a = parse_device(cells)
+            else:
+                p, a = parse_drug(cells)
+            if len(p['name']) < 1 or len(a['name']) < 1:
+                log.warning('invalid record for {}'.format(p['name']))
+                continue
+            response = add_record('entity', [p, a])
+            if response['_status'] != 'OK':
+                log.error('fail to create record for {}'.format(p['name']))
+                log.error(response)
+                continue
+            applicant_product = create_relationship(response['_items'][1]['_id'], response['_items'][0]['_id'])
+            applicant_product['type'] = 7
+            applicant_product['name'] = 'Applicant'
+            applicant_product['abs'] = 'Applicant'
+            response = add_record('relationship', [applicant_product])
+            if response['_status'] != 'OK':
+                log.error('fail to create relationship for {}'.format(p['name']))
+                log.error(response)
+            else:
+                log.debug('added {} to the system'.format(p['name']))
+    log.critical(datetime.datetime.now())
 
 
 def main():
