@@ -63,6 +63,10 @@ class UniversityCaliforniaSpider(ButtonSpider):
             with open(os.path.join(self.work_directory, 'links.json'), 'w') as fo:
                 json.dump(patent_links, fo)
         for p in patent_links:
+            name = p['link'].split('/')[-1]
+            if os.path.exists(os.path.join(self.work_directory, name[:-4] + 'json')):
+                self.log('{} already parsed and will skip'.format(p['link']), level=logging.INFO)
+                continue
             yield Request(
                 url=p['link'],
                 callback=self.parse,
@@ -111,21 +115,21 @@ class UniversityCaliforniaSpider(ButtonSpider):
             del description[k]
         product['asset']['market'] = dictionary_to_markdown(description)
         product['contact'] = self.get_contact(response)
-        product['tag'] = self.add_keywords(product)
+        product['tag'] = self.add_keywords(response)
 
         contact_person = self.get_contact_person(response)
         contact_person['abs'] = 'Person of Contact for ' + product['name']
         contact_person['addr'] = product['addr']
         contact_person['contact'] = product['contact']
         contact_person['tag'] = product['tag']
-        inventors = self.add_inventors(product)
+        inventors = self.add_inventors(response)
         for index, user in enumerate(inventors):
             user['abs'] = 'Inventor of ' + product['name']
             user['addr'] = product['addr']
             user['tag'] = product['tag']
 
         patents = self.get_patents(response)
-        with open(os.path.join(self.work_directory, name[:-4] + 'json'), 'wb') as fo:
+        with open(os.path.join(self.work_directory, name[:-4] + 'json'), 'w') as fo:
             json.dump({'product': product, 'contact': contact_person, 'inventors': inventors, 'patents': patents}, fo)
 
 
@@ -211,7 +215,11 @@ class UniversityCaliforniaSpider(ButtonSpider):
         """
         categories = response.xpath(
             "//div[@class='ncd-data otherdata-categories display-block indented ']//a/text()").getall()
-        categories.extend(response.xpath("//div[@class='ncd-data otherdata-keywords']/p/text()").get().split(', '))
+        try:
+            # keyword may not exist
+            categories.extend(response.xpath("//div[@class='ncd-data otherdata-keywords']/p/text()").get().split(', '))
+        except:
+            pass
         return categories
 
     def get_patents(self, response: Response) -> list:
@@ -229,7 +237,10 @@ class UniversityCaliforniaSpider(ButtonSpider):
                 'issued|approved', row.xpath("//td[2]/text()").get(), re.IGNORECASE) is None else 2
             patent['ref'] = row.xpath("//td[3]/a/@href").get()
             patent['name'] = row.xpath("//td[3]/a/text()").get()
-            patent['created'] = parse(row.xpath["//td[4]"]).strftime("%a, %d %b %Y %H:%M:%S GMT")
+            try:
+                patent['created'] = parse(row.xpath["//td[4]"]).strftime("%a, %d %b %Y %H:%M:%S GMT")
+            except:
+                pass
         return patents
 
 
