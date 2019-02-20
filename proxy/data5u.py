@@ -13,6 +13,8 @@ from proxy.pool import POOL
 import logging
 import atexit
 
+from base.credential import DATA5U_KEY
+
 
 class GetProxyThread(threading.Thread):
 
@@ -20,7 +22,7 @@ class GetProxyThread(threading.Thread):
         threading.Thread.__init__(self, target=self.run)
         super(threading.Thread, self).__init__()
         self.delay_second = 5
-        self.api_url = "http://api.ip.data5u.com/dynamic/get.html?order=7d8a85dd7a1f85cc74e8140fa3711848"
+        self.api_url = "http://api.ip.data5u.com/dynamic/get.html?order={}".format(DATA5U_KEY)
         self.token = ','
         self.started = False
         self.running = threading.Event()

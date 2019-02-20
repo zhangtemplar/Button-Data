@@ -1,5 +1,9 @@
 import re
 import logging
+import requests
+import traceback
+
+from base.credential import AMAP_KEY
 
 
 def dictionary_to_markdown(data: dict, keys=None):
@@ -80,3 +84,26 @@ def create_logger(name):
 
 def remove_empty_string_from_array(array):
     return list(set([a for a in array if len(a) > 0]))
+
+
+def chinese_address_decode(text: str) -> dict or None:
+    """
+    Use 高德地图地理/逆地理编码 to parse chinese address
+    :param text: a free form chinese address
+    :return: the parsed address as an object if possible, otherwise null
+    """
+    try:
+        response = requests.get('https://restapi.amap.com/v3/geocode/geo?address={}&output=JSON&key={}'.format(
+            text, AMAP_KEY)).json()
+        if 'geocodes' in response and len(response['geocodes']) > 0:
+            return {
+                'city': response['geocodes'][0]['city'],
+                'country': 'China',
+                'state': response['geocodes'][0]['province'],
+                'zip': response['geocodes'][0]['adcode'],
+                'line1': response['geocodes'][0]['street'] + ' ' + response['geocodes'][0]['number'],
+                'line2': response['geocodes'][0]['district'] + ' ' + response['geocodes'][0]['township'],
+            }
+    except Exception as e:
+        traceback.print_tb(e.__traceback__)
+        return None
