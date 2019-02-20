@@ -28,7 +28,7 @@ class EuDrugApprovalSpider(EuDrugSpider):
         'Revision number', 'Condition / indication', 'Species', 'ATCvet code', 'First published', 'Revision date',
         'URL')
 
-    def __init__(self):
+    def __init__(self=True):
         super().__init__(True)
         self.work_directory = os.path.expanduser('~/Downloads/eu/')
         if os.path.exists(os.path.join(self.work_directory, 'approval.json')):

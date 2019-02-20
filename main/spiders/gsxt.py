@@ -18,8 +18,8 @@ class GsxtButtonSpider(ButtonSpider):
     work_directory = os.path.expanduser('~/Downloads/gsxt')
 
 
-    def __init__(self):
-        super().__init__(True, True)
+    def __init__(self=True):
+        super().__init__(True)
 
 
     def start_requests(self):

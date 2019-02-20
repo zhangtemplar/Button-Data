@@ -23,7 +23,7 @@ class EuDrugWithdrawnSpider(EuDrugSpider):
         'Therapeutic area', 'Patient safety', 'Orphan medicine', 'Marketing authorisation holder/company name',
         'Type of withdrawal', 'Date of withdrawal', 'Species', 'First published', 'Revision date', 'URL',)
 
-    def __init__(self):
+    def __init__(self=True):
         super().__init__(True)
         self.work_directory = os.path.expanduser('~/Downloads/withdrawn/')
         if os.path.exists(os.path.join(self.work_directory, 'withdrawn.json')):

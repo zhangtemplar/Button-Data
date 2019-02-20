@@ -25,8 +25,8 @@ class UniversityCaliforniaSpider(ButtonSpider):
     start_urls = []
     address = None
 
-    def __init__(self):
-        super().__init__(True, False)
+    def __init__(self=True):
+        super().__init__(True)
         self.work_directory = os.path.expanduser('~/Downloads/{}'.format(self.name))
         if not os.path.exists(self.work_directory):
             os.mkdir(self.work_directory)
@@ -37,7 +37,6 @@ class UniversityCaliforniaSpider(ButtonSpider):
                 url=url,
                 dont_filter=True,
                 callback=self.parse_list,
-                meta={'proxy': POOL.get()},
                 errback=self.handle_failure_selenium)
 
     def parse_list(self, response: Response):

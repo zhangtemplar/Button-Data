@@ -32,8 +32,8 @@ class CfdaSpider(ButtonSpider):
     data_per_page = 40
     work_directory = os.path.expanduser('~/Downloads/cfda')
 
-    def __init__(self):
-        super().__init__(True, True)
+    def __init__(self=True):
+        super().__init__(True)
         if not os.path.exists(self.work_directory):
             os.mkdir(self.work_directory)
 

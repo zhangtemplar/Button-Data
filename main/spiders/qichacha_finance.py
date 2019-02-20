@@ -38,7 +38,7 @@ class QichachaFinanceButtonSpider(ButtonSpider):
         u'融资时间': 6,
     }
 
-    def __init__(self):
+    def __init__(self=True):
         super().__init__(self)
         if not os.path.exists(self.work_directory):
             os.mkdir(self.work_directory)

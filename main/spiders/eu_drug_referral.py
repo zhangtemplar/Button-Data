@@ -24,7 +24,7 @@ class EuDrugReferralSpider(EuDrugSpider):
         'Authorisation model', 'PRAC recommendation', 'Procedure start date', 'PRAC recommendation date',
         'CHMP opinion / CMDh position date', 'EC decision date', 'First published', 'Revision date', 'URL',)
 
-    def __init__(self):
+    def __init__(self=True):
         super().__init__(True)
         self.work_directory = os.path.expanduser('~/Downloads/referral/')
         if os.path.exists(os.path.join(self.work_directory, 'referral.json')):

@@ -25,7 +25,7 @@ class PedataSpider(ButtonSpider):
     year = {str(y) for y in range(2018, 2006, -1)}
     exclusive = True
 
-    def __init__(self):
+    def __init__(self=True):
         super().__init__(self)
         if not os.path.exists(self.work_directory):
             os.mkdir(self.work_directory)

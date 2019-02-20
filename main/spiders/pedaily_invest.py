@@ -18,7 +18,7 @@ class PedailyInvestSpider(ButtonSpider):
     start_urls = ['https://zdb.pedaily.cn/inv/']
     work_directory = os.path.expanduser('~/Downloads/pedaily')
 
-    def __init__(self):
+    def __init__(self=True):
         super().__init__(self)
         if not os.path.exists(self.work_directory):
             os.mkdir(self.work_directory)

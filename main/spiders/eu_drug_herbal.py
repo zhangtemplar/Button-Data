@@ -23,7 +23,7 @@ class EuDrugHerbalSpider(EuDrugSpider):
         'English common name of herbal substance', 'Combination', 'Use', 'Outcome', 'Date added to the inventory',
         'Date added to the priority list', 'First published', 'Revision date', 'URL',)
 
-    def __init__(self):
+    def __init__(self=True):
         super().__init__(True)
         self.work_directory = os.path.expanduser('~/Downloads/herbal/')
         if os.path.exists(os.path.join(self.work_directory, 'herbal.json')):

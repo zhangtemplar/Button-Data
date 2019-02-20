@@ -20,10 +20,9 @@ class ButtonSpider(scrapy.Spider):
     user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36'
     exclusive = False
 
-    def __init__(self, with_proxy: bool=True, require_selenium: bool=False):
+    def __init__(self, with_proxy: bool = True):
         super(scrapy.Spider, self).__init__()
         self.with_proxy = with_proxy
-        self.require_selenium = require_selenium
         if self.with_proxy:
             self.proxyThread = PROXY_THREAD
             self.proxyThread.start()
@@ -33,17 +32,15 @@ class ButtonSpider(scrapy.Spider):
     def parse(self, response: Response):
         pass
 
-    def get_driver(self, response: Response) -> WebDriver:
+    @staticmethod
+    def get_driver(response: Response) -> WebDriver:
         """
         Obtains the web driver from response
 
         :param response: response object
         :return: WebDriver
         """
-        if self.require_selenium:
-            return response.meta['driver']
-        else:
-            return None
+        response.meta.get('driver', None)
 
     def handle_failure_selenium(self, failure):
         self.log('fail to collect {}\n{}'.format(failure.request.url, failure), level=logging.ERROR)
