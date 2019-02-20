@@ -44,21 +44,24 @@ class UniversityCaliforniaSpider(ButtonSpider):
         # wait for page to load
         # wait for the redirect to finish.
         patent_links = []
-        while True:
-            time.sleep(1)
-            self.wait_for_element(driver, "//div[@id='ctl00_ContentPlaceHolder1_UpdateProgress1' and @style='display: block;']")
-            table = driver.find_element_by_xpath("//div[@class='table-body']")
-            for r in table.find_elements_by_xpath("div"):
-                cols = r.find_elements_by_xpath("div")
-                patent = cols[2].find_element_by_xpath('p/a')
-                abstract = cols[2].find_element_by_xpath('div/p')
-                patent_links.append({'name': patent.text, 'link': patent.get_attribute('href'), 'abstract': abstract.text})
-                self.log('Found technology {}'.format(patent.text), level=logging.INFO)
-            if not self.next_page(driver):
-                break
-            time.sleep(3)
-        with open(os.path.join(self.work_directory, 'links.json'), 'w') as fo:
-            json.dump(patent_links, fo)
+        if os.path.exists(os.path.join(self.work_directory, 'links.json')):
+            patent_links = json.load(open(os.path.join(self.work_directory, 'links.json'), 'r'))
+        else:
+            while True:
+                time.sleep(1)
+                self.wait_for_element(driver, "//div[@id='ctl00_ContentPlaceHolder1_UpdateProgress1' and @style='display: block;']")
+                table = driver.find_element_by_xpath("//div[@class='table-body']")
+                for r in table.find_elements_by_xpath("div"):
+                    cols = r.find_elements_by_xpath("div")
+                    patent = cols[2].find_element_by_xpath('p/a')
+                    abstract = cols[2].find_element_by_xpath('div/p')
+                    patent_links.append({'name': patent.text, 'link': patent.get_attribute('href'), 'abstract': abstract.text})
+                    self.log('Found technology {}'.format(patent.text), level=logging.INFO)
+                if not self.next_page(driver):
+                    break
+                time.sleep(3)
+            with open(os.path.join(self.work_directory, 'links.json'), 'w') as fo:
+                json.dump(patent_links, fo)
         for p in patent_links:
             yield Request(
                 url=p['link'],
