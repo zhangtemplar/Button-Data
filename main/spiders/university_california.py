@@ -50,10 +50,11 @@ class UniversityCaliforniaSpider(ButtonSpider):
             table = driver.find_element_by_xpath("//div[@class='table-body']")
             for r in table.find_elements_by_xpath("div"):
                 cols = r.find_elements_by_xpath("div")
-                patent = cols[2].find_element_by_tag_name('p/a')
-                abstract = cols[2].find_element_by_tag_name('div/p')
-                patent_links.append({'name': patent.text, 'link': patent.get_attribute('href'), 'abstract': abstract})
-            if not self.next_page():
+                patent = cols[2].find_element_by_xpath('p/a')
+                abstract = cols[2].find_element_by_xpath('div/p')
+                patent_links.append({'name': patent.text, 'link': patent.get_attribute('href'), 'abstract': abstract.text})
+                self.log('Found technology {}'.format(patent.text), level=logging.INFO)
+            if not self.next_page(driver):
                 break
             self.log('next page', level=logging.INFO)
             time.sleep(3)
@@ -82,6 +83,7 @@ class UniversityCaliforniaSpider(ButtonSpider):
         return result
 
     def parse(self, response):
+        self.log('Parse technology {}'.format(response.url), level=logging.INFO)
         name = response.url.split('/')[-1]
         with open(os.path.join(self.work_directory, name), 'wb') as fo:
             fo.write(response.body)
@@ -238,14 +240,14 @@ class UniversityCaliforniaSpider(ButtonSpider):
             return False
 
 
-    def next_page(self) -> bool:
+    def next_page(self, driver: WebDriver) -> bool:
         """
         Click to get to next page.
 
         :return: true, if next page button is clicked
         """
         try:
-            button = self.driver.find_element_by_xpath("//li[@class='next']") \
+            button = driver.find_element_by_xpath("//li[@class='next']") \
                 .find_element_by_xpath('a') \
                 .find_element_by_xpath('i')
             if button is not None:
