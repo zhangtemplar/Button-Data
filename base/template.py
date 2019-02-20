@@ -62,7 +62,7 @@ def create_company():
                 "amount": {"amount": 0, "unit": "USD"},
                 "val": {"amount": 0, "unit": "USD"},
                 "share": 0,
-                "due": "",
+                "due": "Thu, 01 Jan 1970 00:00:00 GMT",
             },
             "fin": "",
             "market": "",
