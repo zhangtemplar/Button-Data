@@ -17,6 +17,11 @@ class GsxtButtonSpider(ButtonSpider):
         'http://www.gsxt.gov.cn/corp-query-entprise-info-hot-search-list.html?province=100000']
     work_directory = os.path.expanduser('~/Downloads/gsxt')
 
+
+    def __init__(self):
+        super().__init__(True, True)
+
+
     def start_requests(self):
         for url in self.start_urls:
             yield SeleniumRequest(
@@ -184,15 +189,4 @@ class GsxtButtonSpider(ButtonSpider):
 
     def _parse_base_group_member(self, driver):
         self._load_more(driver)
-
-    @staticmethod
-    def get_driver(response):
-        # type: (object) -> WebDriver
-        """
-        Obtains the web driver from response
-
-        :param response: response object
-        :return: WebDriver
-        """
-        return response.meta['driver']
 

@@ -33,7 +33,7 @@ class CfdaSpider(ButtonSpider):
     work_directory = os.path.expanduser('~/Downloads/cfda')
 
     def __init__(self):
-        super().__init__(True)
+        super().__init__(True, True)
         if not os.path.exists(self.work_directory):
             os.mkdir(self.work_directory)
 
@@ -78,16 +78,6 @@ class CfdaSpider(ButtonSpider):
         for m in match:
             return CfdaSpider.base_url + m.group(1)
         return None
-
-    @staticmethod
-    def get_driver(response: Response) -> WebDriver:
-        """
-        Obtains the web driver from response
-
-        :param response: response object
-        :return: WebDriver
-        """
-        return response.meta['driver']
 
     @staticmethod
     def _next_page(driver: WebDriver):
