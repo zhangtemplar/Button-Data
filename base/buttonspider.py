@@ -12,13 +12,15 @@ import scrapy
 from scrapy_selenium import SeleniumRequest
 from proxy.data5u import PROXY_THREAD
 from proxy.pool import POOL
+from scrapy.http import Response
+from selenium.webdriver.chrome.webdriver import WebDriver
 
 
 class ButtonSpider(scrapy.Spider):
     user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36'
     exclusive = False
 
-    def __init__(self, with_proxy=True, require_selenium=False):
+    def __init__(self, with_proxy: bool=True, require_selenium: bool=False):
         super(scrapy.Spider, self).__init__()
         self.with_proxy = with_proxy
         self.require_selenium = require_selenium
@@ -28,8 +30,10 @@ class ButtonSpider(scrapy.Spider):
             # each proxy need 5 seconds to start, there will be 16 proxies required to start
             time.sleep(80)
 
-    def get_driver(self, response):
-        # type: (object) -> WebDriver
+    def parse(self, response: Response):
+        pass
+
+    def get_driver(self, response: Response) -> WebDriver:
         """
         Obtains the web driver from response
 

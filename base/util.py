@@ -107,3 +107,10 @@ def parse_chinese_address(text: str) -> dict or None:
     except Exception as e:
         traceback.print_tb(e.__traceback__)
         return None
+
+
+def extract_phone(text):
+    result = []
+    for m in re.finditer('\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}', text):
+        result.append(m.group())
+    return result
