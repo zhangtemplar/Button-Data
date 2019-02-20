@@ -17,7 +17,7 @@ class EuDrugWithdrawnSpider(EuDrugSpider):
     This class processes the drug approved by Europe Medical Administrative.
     https://www.ema.europa.eu/en/medicines
     """
-    name = 'Europe Union Approved Medicine'
+    name = 'Europe Union Withdrawn Medicine'
     headers = (
         'Category', 'Medicine name', 'Active substance', 'International non-proprietary name (INN) / common name',
         'Therapeutic area', 'Patient safety', 'Orphan medicine', 'Marketing authorisation holder/company name',

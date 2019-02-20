@@ -17,7 +17,7 @@ class EuDrugHerbalSpider(EuDrugSpider):
     This class processes the drug approved by Europe Medical Administrative.
     https://www.ema.europa.eu/en/medicines
     """
-    name = 'Europe Union Approved Medicine'
+    name = 'Europe Union Herbal Medicine'
     headers = (
         'Status', 'Latin name of herbal substance', 'Botanical name of plant',
         'English common name of herbal substance', 'Combination', 'Use', 'Outcome', 'Date added to the inventory',

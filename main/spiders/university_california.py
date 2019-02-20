@@ -56,7 +56,6 @@ class UniversityCaliforniaSpider(ButtonSpider):
                 self.log('Found technology {}'.format(patent.text), level=logging.INFO)
             if not self.next_page(driver):
                 break
-            self.log('next page', level=logging.INFO)
             time.sleep(3)
         with open(os.path.join(self.work_directory, 'links.json'), 'w') as fo:
             json.dump(patent_links, fo)
@@ -246,7 +245,15 @@ class UniversityCaliforniaSpider(ButtonSpider):
 
         :return: true, if next page button is clicked
         """
+        current_page = int(
+            driver.find_element_by_id('ctl00_ContentPlaceHolder1_ucNCDList_ucPagination_lblCurrentPageNum').text)
+        total_page = int(
+            driver.find_element_by_id('ctl00_ContentPlaceHolder1_ucNCDList_ucPagination_lblTotalPages').text)
+        if current_page >= total_page:
+            return False
+        self.log('finish page {}/{}'.format(current_page, total_page), level=logging.INFO)
         for trial in range(3):
+            time.sleep(trial * 5)
             try:
                 button = driver.find_element_by_xpath("//li[@class='next']") \
                     .find_element_by_xpath('a') \
@@ -258,5 +265,4 @@ class UniversityCaliforniaSpider(ButtonSpider):
                     return False
             except Exception as e:
                 self.log(e, level=logging.ERROR)
-                time.sleep(trial * 5)
         return False

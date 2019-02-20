@@ -17,7 +17,7 @@ class EuDrugReferralSpider(EuDrugSpider):
     This class processes the drug approved by Europe Medical Administrative.
     https://www.ema.europa.eu/en/medicines
     """
-    name = 'Europe Union Approved Medicine'
+    name = 'Europe Union Referral Medicine'
     headers = (
         'Category', 'Referral name', 'International non-proprietary name (INN) / common name', 'Status of referral',
         'Safety referrals', 'Referral type', 'Associated name', 'Reference number', 'Decision making model',
