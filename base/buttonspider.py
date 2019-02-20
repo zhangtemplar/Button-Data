@@ -41,22 +41,27 @@ class ButtonSpider(scrapy.Spider):
         else:
             return None
 
+    def handle_failure_selenium(self, failure):
+        self.log('fail to collect {}\n{}'.format(failure.request.url, failure), level=logging.ERROR)
+        if self.with_proxy:
+            POOL.remove(failure.request.meta['proxy'])
+        # try with a new proxy
+        self.log('restart from the failed url {}'.format(failure.request.url), level=logging.INFO)
+        yield SeleniumRequest(
+            url=failure.request.url,
+            callback=failure.request.callback,
+            # try a new proxy
+            errback=self.handle_failure_selenium)
+
     def handle_failure(self, failure):
         self.log('fail to collect {}\n{}'.format(failure.request.url, failure), level=logging.ERROR)
         if self.with_proxy:
             POOL.remove(failure.request.meta['proxy'])
         # try with a new proxy
         self.log('restart from the failed url {}'.format(failure.request.url), level=logging.INFO)
-        if self.require_selenium:
-            yield SeleniumRequest(
-                url=failure.request.url,
-                callback=failure.request.callback,
-                # try a new proxy
-                errback=failure.request.errback)
-        else:
-            yield scrapy.Request(
-                url=failure.request.url,
-                callback=failure.request.callback,
-                # try a new proxy
-                meta={'proxy': POOL.get() if not self.exclusive else POOL.pop()},
-                errback=failure.request.errback)
+        yield scrapy.Request(
+            url=failure.request.url,
+            callback=failure.request.callback,
+            # try a new proxy
+            meta={'proxy': POOL.get() if not self.exclusive else POOL.pop()},
+            errback=self.handle_failure)

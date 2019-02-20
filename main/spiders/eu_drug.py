@@ -22,7 +22,7 @@ class EuDrugSpider(ButtonSpider):
                 dont_filter=True,
                 callback=self.apply_filter,
                 meta={'proxy': POOL.get()},
-                errback=self.handle_failure)
+                errback=self.handle_failure_selenium)
 
     def login(self, response: Response):
         """

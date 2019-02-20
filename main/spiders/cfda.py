@@ -37,23 +37,13 @@ class CfdaSpider(ButtonSpider):
         if not os.path.exists(self.work_directory):
             os.mkdir(self.work_directory)
 
-    def handle_failure(self, failure):
-        self.log('fail to collect {}\n{}'.format(failure.request.url, failure), level=logging.ERROR)
-        # try with a new proxy
-        self.log('restart from the failed url {}'.format(failure.request.url), level=logging.INFO)
-        yield SeleniumRequest(
-            url=failure.request.url,
-            callback=failure.request.callback,
-            # try a new proxy
-            errback=failure.request.errback)
-
     def start_requests(self):
         for url in self.start_urls:
             yield SeleniumRequest(
                 url=url,
                 dont_filter=True,
                 callback=self.parse_list,
-                errback=self.handle_failure)
+                errback=self.handle_failure_selenium)
 
     @staticmethod
     def _last_page(driver: WebDriver):
@@ -131,7 +121,7 @@ class CfdaSpider(ButtonSpider):
                 callback=self.parse_product,
                 wait_time=10,
                 wait_until=EC.presence_of_element_located((By.XPATH, '//body/div/div/table[1]/tbody')),
-                errback=self.handle_failure)
+                errback=self.handle_failure_selenium)
 
     def parse_domestic_drug(self, table: dict):
         product = create_product()

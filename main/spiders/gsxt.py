@@ -28,7 +28,7 @@ class GsxtButtonSpider(ButtonSpider):
                 url,
                 callback=self.parse,
                 meta={'proxy': POOL.get()},
-                errback=self.handle_failure)
+                errback=self.handle_failure_selenium)
 
     def parse(self, response):
         self._parse_report(response)

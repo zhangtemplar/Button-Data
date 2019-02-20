@@ -30,7 +30,7 @@ class PedailyPeSpider(ButtonSpider):
                 dont_filter=True,
                 callback=self.apply_filter,
                 meta={'proxy': POOL.get()},
-                errback=self.handle_failure)
+                errback=self.handle_failure_selenium)
 
     def apply_filter(self, response):
         for year in range(2018, 2003, -1):

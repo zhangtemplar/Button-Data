@@ -30,7 +30,7 @@ class PedailyInvestSpider(ButtonSpider):
                 dont_filter=True,
                 callback=self.apply_filter,
                 meta={'proxy': POOL.get()},
-                errback=self.handle_failure)
+                errback=self.handle_failure_selenium)
 
     def find_filter(self, response):
         driver = response.request.meta.get('driver', None)
