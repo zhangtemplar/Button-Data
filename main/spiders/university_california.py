@@ -233,7 +233,7 @@ class UniversityCaliforniaSpider(ButtonSpider):
     def wait_for_element(self, driver: WebDriver, xpath: str, timeout: int=30) -> bool:
         wait = WebDriverWait(driver, timeout)
         try:
-            wait.until(lambda x: len(x.find_elements_by_xpath(xpath)) > 0)
+            wait.until(lambda x: len(x.find_elements_by_xpath(xpath)) < 1)
             return True
         except:
             self.log('Timeout will waiting for page to load', level=logging.ERROR)
@@ -246,15 +246,17 @@ class UniversityCaliforniaSpider(ButtonSpider):
 
         :return: true, if next page button is clicked
         """
-        try:
-            button = driver.find_element_by_xpath("//li[@class='next']") \
-                .find_element_by_xpath('a') \
-                .find_element_by_xpath('i')
-            if button is not None:
-                button.click()
-                return True
-            else:
-                return False
-        except Exception as e:
-            self.log(e, level=logging.ERROR)
-            return False
+        for trial in range(3):
+            try:
+                button = driver.find_element_by_xpath("//li[@class='next']") \
+                    .find_element_by_xpath('a') \
+                    .find_element_by_xpath('i')
+                if button is not None:
+                    button.click()
+                    return True
+                else:
+                    return False
+            except Exception as e:
+                self.log(e, level=logging.ERROR)
+                time.sleep(trial * 5)
+        return False

@@ -27,7 +27,7 @@ class ButtonSpider(scrapy.Spider):
             self.proxyThread = PROXY_THREAD
             self.proxyThread.start()
             # each proxy need 5 seconds to start, there will be 16 proxies required to start
-            time.sleep(80)
+            time.sleep(5)
 
     def parse(self, response: Response):
         pass
