@@ -21,7 +21,7 @@ from proxy.pool import POOL
 
 class UniversityCaliforniaSpider(ButtonSpider):
     name = None
-    allowed_domains = ['https://techtransfer.universityofcalifornia.edu']
+    allowed_domains = ['techtransfer.universityofcalifornia.edu']
     start_urls = []
     address = None
 
