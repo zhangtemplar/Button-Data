@@ -264,11 +264,10 @@ class UniversityCaliforniaSpider(ButtonSpider):
             driver.find_element_by_id('ctl00_ContentPlaceHolder1_ucNCDList_ucPagination_lblCurrentPageNum').text)
         total_page = int(
             driver.find_element_by_id('ctl00_ContentPlaceHolder1_ucNCDList_ucPagination_lblTotalPages').text)
+        self.log('finish page {}/{}'.format(current_page, total_page), level=logging.INFO)
         if current_page >= total_page:
             return False
-        self.log('finish page {}/{}'.format(current_page, total_page), level=logging.INFO)
-        for trial in range(3):
-            time.sleep(trial * 5)
+        while True:
             try:
                 button = driver.find_element_by_xpath("//li[@class='next']") \
                     .find_element_by_xpath('a') \
@@ -276,8 +275,7 @@ class UniversityCaliforniaSpider(ButtonSpider):
                 if button is not None:
                     button.click()
                     return True
-                else:
-                    return False
             except Exception as e:
                 self.log(e, level=logging.ERROR)
+                time.sleep(5)
         return False
