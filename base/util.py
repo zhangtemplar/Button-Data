@@ -28,6 +28,8 @@ def remove_blank(text):
 def list_to_table(data):
     if len(data) < 1:
         return ''
+    if isinstance(data[0], str):
+        return '  - ' + '\n  - '.join(data)
     keys = sorted(data[0].keys())
     result = ' | '.join(keys)
     result += '\n'
