@@ -6,14 +6,14 @@ __email__ = "zhangtemplar@gmail.com"
 Add documentation of this module here.
 """
 
-import requests
-import time
-import threading
-from proxy.pool import POOL
 import logging
-import atexit
+import threading
+import time
+
+import requests
 
 from base.credential import DATA5U_KEY
+from proxy.pool import POOL
 
 
 class GetProxyThread(threading.Thread):
@@ -54,5 +54,3 @@ class GetProxyThread(threading.Thread):
 
 
 PROXY_THREAD = GetProxyThread()
-
-atexit.register(lambda: PROXY_THREAD.close())

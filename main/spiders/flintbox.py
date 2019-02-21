@@ -4,7 +4,7 @@ import logging
 import os
 import re
 from copy import deepcopy
-from typing import Iterable
+from typing import Iterable, List
 
 from dateutil.parser import parse
 from scrapy import Request
@@ -158,7 +158,7 @@ class FlintboxSpider(ButtonSpider):
                 result['banner'] = self.get_pictures(row.xpath('td'))
         return result
 
-    def get_pictures(self, contents: Iterable[Selector]) -> list[str]:
+    def get_pictures(self, contents: Iterable[Selector]) -> List[str]:
         """
         Get the picture urls from the webelement.
 
