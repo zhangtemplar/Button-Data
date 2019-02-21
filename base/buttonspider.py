@@ -44,8 +44,6 @@ class ButtonSpider(scrapy.Spider):
 
     def handle_failure_selenium(self, failure):
         self.log('fail to collect {}\n{}'.format(failure.request.url, failure), level=logging.ERROR)
-        if self.with_proxy:
-            POOL.remove(failure.request.meta['proxy'])
         # try with a new proxy
         self.log('restart from the failed url {}'.format(failure.request.url), level=logging.INFO)
         yield SeleniumRequest(
