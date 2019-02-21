@@ -10,7 +10,6 @@ from dateutil.parser import parse
 from scrapy import Request
 from scrapy.http import Response
 from scrapy.selector import Selector
-from scrapy_selenium import SeleniumRequest
 
 from base.buttonspider import ButtonSpider
 from base.template import create_product, create_user
@@ -32,14 +31,14 @@ class FlintboxSpider(ButtonSpider):
 
     def start_requests(self):
         for url in self.start_urls:
-            yield SeleniumRequest(
+            yield Request(
                 url=url,
                 dont_filter=True,
+                meta={'proxy': POOL.get()},
                 callback=self.parse_list,
-                errback=self.handle_failure_selenium)
+                errback=self.handle_failure)
 
     def parse_list(self, response: Response):
-        driver = self.get_driver(response)
         # wait for page to load
         # wait for the redirect to finish.
         patent_links = []
@@ -47,21 +46,19 @@ class FlintboxSpider(ButtonSpider):
             patent_links = json.load(open(os.path.join(self.work_directory, 'links.json'), 'r'))
         else:
             # the id of product is provded in the <script></script>
-            scripts = driver.find_elements_by_tag_name("script")
-            for script in scripts:
-                code = script.get_attribute("innerHTML")
+            for code in response.xpath("//script").getall():
                 if 'id_list' in code:
                     ids = re.findall(r'[0-9]+', re.findall(r'\[[0-9,]+\]', code)[0])
-                    patent_links = [response.url + '/public/project/{}/'.format(patentId) for patentId in ids]
+                    patent_links = [response.url + '/public/project/{}'.format(patentId) for patentId in ids]
             with open(os.path.join(self.work_directory, 'links.json'), 'w') as fo:
                 json.dump(patent_links, fo)
         for p in patent_links:
-            name = p['link'].split('/')[-1]
-            if os.path.exists(os.path.join(self.work_directory, name[:-4] + 'json')):
-                self.log('{} already parsed and will skip'.format(p['link']), level=logging.INFO)
+            name = p.split('/')[-1]
+            if os.path.exists(os.path.join(self.work_directory, name + '.json')):
+                self.log('{} already parsed and will skip'.format(p), level=logging.INFO)
                 continue
-            yield Request(
-                url=p['link'],
+            yield response.follow(
+                url=p,
                 callback=self.parse,
                 dont_filter=True,
                 meta={'proxy': POOL.get()},
@@ -85,7 +82,7 @@ class FlintboxSpider(ButtonSpider):
     def parse(self, response):
         self.log('Parse technology {}'.format(response.url), level=logging.INFO)
         name = response.url.split('/')[-1]
-        with open(os.path.join(self.work_directory, name), 'wb') as fo:
+        with open(os.path.join(self.work_directory, name + '.html'), 'wb') as fo:
             fo.write(response.body)
         product = create_product()
         product['ref'] = response.url
@@ -121,9 +118,8 @@ class FlintboxSpider(ButtonSpider):
             user['addr'] = product['addr']
             user['tag'] = product['tag']
 
-        patents = self.get_patents(response)
-        with open(os.path.join(self.work_directory, name[:-4] + 'json'), 'w') as fo:
-            json.dump({'product': product, 'inventors': inventors, 'patents': patents}, fo)
+        with open(os.path.join(self.work_directory, name + '.json'), 'w') as fo:
+            json.dump({'product': product, 'inventors': inventors}, fo)
 
     def get_meta(self, response: Response) -> dict:
         """
@@ -132,33 +128,40 @@ class FlintboxSpider(ButtonSpider):
         :return dict(str, object)
         """
         result = {}
-        for row in response.xpath("//div[@id='dynamic_content']/table[2]/tbody/tr"):
+        # Note: if running with JS, the data can be found in //div[@id='dynamic_content']/table[2]/tbody/tr
+        for row in response.xpath("//div[@id='dynamic_content']/table/table/tr"):
             try:
-                title = row.find_element_by_xpath("string(th)").get()
+                title = row.xpath("string(th)").get()
             except Exception as e:
                 self.log('Fail to find title for meta', level=logging.WARN)
                 continue
+            if len(title) < 1:
+                continue
             result[title] = ''
-            for line in row.find_element_by_xpath('td/*'):
+            for line in row.xpath('td/*'):
                 tag = line.xpath('name()').get()
                 if tag.startswith('ul'):
                     # it is a list, keep it in markdown format
                     if len(result[title]) > 0:
                         result[title] += '\n'
                     result[title] += '  - '
-                    result[title] += '\n  - '.join(row.xpath("li").xpath('string()').getall())
+                    result[title] += '\n  - '.join(line.xpath("li").xpath('string()').getall())
                 else:
                     # anything else, e.g., a paragraph
                     if len(result[title]) > 0:
                         result[title] += '\n'
-                    result[title] += row.xpath('string()').get()
+                    result[title] += line.xpath('string()').get()
+            if len(row.xpath('td/*')) < 1:
+                if len(result[title]) > 0:
+                    result[title] += '\n'
+                result[title] += row.xpath('string(td)').get()
             if 'Tags' in title:
                 result[title] = row.xpath('td/a/text()').getall()
             elif 'Abstract' in title:
                 result['banner'] = self.get_pictures(row.xpath('td'))
         return result
 
-    def get_pictures(self, contents: Iterable[Selector]) -> list[str]:
+    def get_pictures(self, contents: Iterable[Selector]) -> list:
         """
         Get the picture urls from the webelement.
 
@@ -190,8 +193,10 @@ class FlintboxSpider(ButtonSpider):
                 email = row.xpath('//a/@href').split(':')
                 if len(email) > 1:
                     contact['email'] = email[1]
-            break
-        self.log('Found contact {}'.format(contact), level=logging.DEBUG)
+                self.log('Found contact {}'.format(contact), level=logging.DEBUG)
+                break
+            if 'Licensing Contact' in row.xpath('string()').get():
+                contact_title_found = True
         return contact
 
     def add_inventors(self, response: Response) -> list:
@@ -214,6 +219,6 @@ class FlintboxSpider(ButtonSpider):
                     inventors.append(user)
                     self.log('Found inventor {}'.format(user['name']), level=logging.DEBUG)
                 break
-            if row.xpath('name()').get() == 'h2' and row.xpath('string()').get == 'Researchers':
+            if row.xpath('name()').get() == 'h2' and row.xpath('string()').get() == 'Researchers':
                 inventor_found = True
         return inventors
