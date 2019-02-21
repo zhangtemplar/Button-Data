@@ -110,6 +110,8 @@ def parse_chinese_address(text: str) -> dict or None:
 
 
 def extract_phone(text):
+    if not isinstance(text, str):
+        return []
     result = []
     for m in re.finditer('\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}', text):
         result.append(m.group())
