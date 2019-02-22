@@ -62,5 +62,5 @@ class ButtonSpider(scrapy.Spider):
             url=failure.request.url,
             callback=failure.request.callback,
             # try a new proxy
-            meta={'proxy': POOL.get() if not self.exclusive else POOL.pop()},
+            meta={'proxy': POOL.get() if not self.exclusive else POOL.pop()} if self.with_proxy else {},
             errback=self.handle_failure)

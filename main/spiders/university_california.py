@@ -25,8 +25,8 @@ class UniversityCaliforniaSpider(ButtonSpider):
     start_urls = []
     address = None
 
-    def __init__(self=True):
-        super().__init__(True)
+    def __init__(self):
+        super().__init__(False)
         self.work_directory = os.path.expanduser('~/Downloads/{}'.format(self.name))
         if not os.path.exists(self.work_directory):
             os.mkdir(self.work_directory)
@@ -71,7 +71,7 @@ class UniversityCaliforniaSpider(ButtonSpider):
                 url=p['link'],
                 callback=self.parse,
                 dont_filter=True,
-                meta={'proxy': POOL.get()},
+                meta={'proxy': POOL.get()} if self.with_proxy else {},
                 errback=self.handle_failure)
 
     @staticmethod
