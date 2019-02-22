@@ -9,14 +9,6 @@ from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
 from proxy.data5u import PROXY_THREAD
-from main.spiders.ucb import UcbSpider
-from main.spiders.ucd import UcdSpider
-from main.spiders.uci import UciSpider
-from main.spiders.ucla import UclaSpider
-from main.spiders.ucsb import UcsbSpider
-from main.spiders.ucsc import UcscSpider
-from main.spiders.ucsd import UcsdSpider
-from main.spiders.ucsf import UcsfSpider
 
 
 def process_flint_parallel():
@@ -37,20 +29,30 @@ def process_flint_parallel():
     PROXY_THREAD.close()
 
 
-def start_next(process: CrawlerProcess, crawlers: list):
-    print('start crawler {}'.format(crawlers[0].__name__))
-    deferred = process.crawl(crawlers[0])
-    if len(crawlers) > 1:
-        deferred.addCallback(lambda _: start_next(process, crawlers[1:]))
-
-
-def main():
+def process_uc_sequentially():
+    from main.spiders import university_california
+    from main.spiders.university_california import UniversityCaliforniaSpider
+    import os
+    for module in os.listdir(os.path.dirname(university_california.__file__)):
+        if module == '__init__.py' or module[-3:] != '.py':
+            continue
+        __import__('main.spiders.' + module[:-3], locals(), globals())
+    del module
+    crawlers = UniversityCaliforniaSpider.__subclasses__()
+    print('Find crawlers: {}'.format([c.__name__ for c in crawlers]))
     process = CrawlerProcess(settings=get_project_settings())
-    crawlers = [UcbSpider, UcdSpider, UciSpider, UclaSpider, UcsbSpider, UcscSpider, UcsdSpider, UcsfSpider]
-    start_next(process, crawlers)
+    start_sequentially(process, crawlers)
     process.start()
     PROXY_THREAD.close()
 
 
+def start_sequentially(process: CrawlerProcess, crawlers: list):
+    print('start crawler {}'.format(crawlers[0].__name__))
+    deferred = process.crawl(crawlers[0])
+    if len(crawlers) > 1:
+        deferred.addCallback(lambda _: start_sequentially(process, crawlers[1:]))
+
+
 if __name__ == '__main__':
-    main()
+    # process_flint_parallel()
+    process_uc_sequentially()
