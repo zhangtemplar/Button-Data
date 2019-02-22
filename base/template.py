@@ -16,7 +16,7 @@ def create_relationship():
         "name": "",
         "end": None,
         "srcId": "",
-        "status": 0,
+        "stat": 0,
         "abs": "",
         "detail": "",
         "tag": [],
@@ -32,12 +32,18 @@ def create_user():
         "ref": "",
         "abs": "",
         "name": "",
+        "nick": "",
+        "onepage": {
+            'bg': '',
+            'prod': '',
+            'high': '',
+            'team': '',
+        },
         "srcId": "000000000000000000000000",
         "addr": {"country": "", "line2": "", "city": "", "zip": "", "state": "", "line1": ""},
         "contact": {"website": "", "meet": "", "email": "", "phone": ""},
         "intro": "",
         "exp": {
-            'real': "",
             'resume': "",
             'exp': {'title': '', 'company': ''},
             'edu': {'degree': '', 'major': '', 'school': ''},
@@ -56,6 +62,13 @@ def create_company():
         "addr": {"country": "", "line2": "", "city": "", "zip": "", "state": "", "line1": ""},
         "contact": {"website": "", "meet": "", "email": "", "phone": ""},
         "intro": "",
+        "nick": "",
+        "onepage": {
+            'bg': '',
+            'prod': '',
+            'high': '',
+            'team': '',
+        },
         "entr": {
             "bp": "",
             "demand": {
@@ -85,6 +98,13 @@ def create_product():
         "contact": {"website": "", "meet": "", "email": "", "phone": ""},
         "intro": "",
         "tag": [],
+        "nick": "",
+        "onepage": {
+            'bg': '',
+            'prod': '',
+            'high': '',
+            'team': '',
+        },
         'asset': {
             'price': {
                 'cost': {"amount": 0.0, 'unit': "USD"},
