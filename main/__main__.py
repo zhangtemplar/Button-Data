@@ -19,6 +19,24 @@ from main.spiders.ucsd import UcsdSpider
 from main.spiders.ucsf import UcsfSpider
 
 
+def process_flint_parallel():
+    from main.spiders import flintbox
+    from main.spiders.flintbox import FlintboxSpider
+    import os
+    for module in os.listdir(os.path.dirname(flintbox.__file__)):
+        if module == '__init__.py' or module[-3:] != '.py':
+            continue
+        __import__('main.spiders.' + module[:-3], locals(), globals())
+    del module
+    crawlers = FlintboxSpider.__subclasses__()
+    print('Find crawlers: {}'.format([c.__name__ for c in crawlers]))
+    process = CrawlerProcess(settings=get_project_settings())
+    for c in crawlers:
+        process.crawl(c)
+    process.start()
+    PROXY_THREAD.close()
+
+
 def start_next(process: CrawlerProcess, crawlers: list):
     print('start crawler {}'.format(crawlers[0].__name__))
     deferred = process.crawl(crawlers[0])
