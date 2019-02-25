@@ -1,14 +1,17 @@
-from main.spiders.flintbox import FlintboxSpider
-from scrapy import Request
-from scrapy.http import Response
-import time
+import json
 import logging
 import os
-import json
-from proxy.pool import POOL
-from base.template import create_company
 import re
+import time
 from copy import deepcopy
+
+from scrapy import Request
+from scrapy.http import Response
+
+from base.template import create_company
+from main.spiders.flintbox import FlintboxSpider
+from proxy.pool import POOL
+
 
 class FlintboxAllSpider(FlintboxSpider):
     name = 'Flintbox'
