@@ -2,7 +2,7 @@ from main.spiders.texastech import TexasTechSpider
 
 
 class DelawareNouvantSpider(TexasTechSpider):
-    name = 'University of Delaware'
+    name = 'University of Delaware (Nouvant)'
     start_urls = ['http://innovation.oeip.udel.edu/technologies']
     address = {
         'line1': '1 Innovation Way',

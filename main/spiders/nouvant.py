@@ -42,37 +42,29 @@ class NouvantSpider(ButtonSpider):
         # wait for page to load
         # wait for the redirect to finish.
         patent_links = []
-        if os.path.exists(os.path.join(self.work_directory, 'links.json')):
-            patent_links = json.load(open(os.path.join(self.work_directory, 'links.json'), 'r'))
-        else:
-            while True:
-                for row in response.xpath("//div[@id='nouvant-portfolio-content']/div[@class='technology']"):
-                    title = row.xpath("h2/a/text()").get()
-                    link = row.xpath("h2/a/@href").get()
-                    abstract = row.xpath("p/span/text()").get()
-                    self.log('found patent {}'.format(title), level=logging.INFO)
-                    patent_links.append({'title': title, 'link': link, 'abstract': abstract})
-                statistics = self.statistics(response)
-                self.log('found {}/{} patents'.format(statistics['end'], statistics['total']))
-                if statistics['end'] < statistics['total']:
-                    yield response.follow(
-                        url='http://inventions.umich.edu/technologies?limit=50&offset={}&query='.format(
-                            statistics['end']),
-                        callback=self.parse,
-                        dont_filter=True,
-                        meta={'proxy': POOL.get()},
-                        errback=self.handle_failure)
-                else:
-                    break
-            with open(os.path.join(self.work_directory, 'links.json'), 'w') as fo:
-                json.dump(patent_links, fo)
+        for row in response.xpath("//div[@id='nouvant-portfolio-content']/div[@class='technology']"):
+            title = row.xpath("h2/a/text()").get()
+            link = row.xpath("h2/a/@href").get()
+            abstract = row.xpath("p/span/text()").get()
+            self.log('found patent {}'.format(title), level=logging.INFO)
+            patent_links.append({'title': title, 'link': link, 'abstract': abstract})
+        statistics = self.statistics(response)
+        self.log('found {}/{} patents'.format(statistics['end'], statistics['total']))
+        if statistics['end'] < statistics['total']:
+            yield response.follow(
+                url='/technologies?limit=50&offset={}&query='.format(
+                    statistics['end']),
+                callback=self.parse_list,
+                dont_filter=True,
+                meta={'proxy': POOL.get()},
+                errback=self.handle_failure)
         for p in patent_links:
-            name = p.split('/')[-1]
+            name = p['link'].split('/')[-1]
             if os.path.exists(os.path.join(self.work_directory, name + '.json')):
-                self.log('{} already parsed and will skip'.format(p), level=logging.INFO)
+                self.log('{} already parsed and will skip'.format(p['link']), level=logging.INFO)
                 continue
             yield response.follow(
-                url=p,
+                url=p['link'],
                 callback=self.parse,
                 dont_filter=True,
                 meta={'proxy': POOL.get()},
@@ -117,7 +109,7 @@ class NouvantSpider(ButtonSpider):
         else:
             product['abs'] = name
         product['intro'] = '\n'.join(contents[1:])
-        del product['abstract']
+        del meta['abstract']
         product['asset']['market'] = dictionary_to_markdown(meta)
 
         manager, product['contact'] = self.get_contact(response)
@@ -158,7 +150,7 @@ class NouvantSpider(ButtonSpider):
         :param response: Response object
         :return a list of inventors
         """
-        return response.xpath("//dd[@class='categories']//li/a/tect()").getall()
+        return response.xpath("//dd[@class='categories']//li/a/text()").getall()
 
     def get_contact(self, response: Response) -> (dict, dict):
         """
@@ -175,8 +167,9 @@ class NouvantSpider(ButtonSpider):
         manager = create_user()
         manager['name'] = name
         manager['ref'] = link
-        manager['tag'] = remove_empty_string_from_array(
-            response.xpath("//dd[@class='manager']/div/em[1]/text()").get().split(', '))
+        tag = response.xpath("//dd[@class='manager']/div/em[1]/text()").get()
+        if tag is not None and isinstance(tag, str):
+            manager['tag'] = remove_empty_string_from_array(tag.split(', '))
         contact['phone'] = response.xpath("//dd[@class='manager']/div/em[2]/text()").get()
         manager['contact'] = contact
         manager['contact']['website'] = link
@@ -196,8 +189,8 @@ class NouvantSpider(ButtonSpider):
                 result[title] += '\n  - ' + '\n  - '.join(row.xpath("string(li)").getall())
             elif row.xpath("name()").get() == 'h2':
                 title = row.xpath("string()").get()
-                result['title'] = ''
+                result[title] = ''
             else:
                 # the text content
-                result['title'] += '\n' + row.xpath("string()").get()
+                result[title] += '\n' + row.xpath("string()").get()
         return result

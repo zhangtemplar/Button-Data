@@ -73,4 +73,11 @@ def start_sequentially(process: CrawlerProcess, crawlers: list):
 
 if __name__ == '__main__':
     # process_flint_parallel()
-    process_uc_sequentially()
+    # process_uc_sequentially()
+    process_nouvant_parallel()
+    # from main.spiders.minnesota import MinnesotaSpider
+    # process = CrawlerProcess(settings=get_project_settings())
+    # process.crawl(MinnesotaSpider)
+    # process.start()
+    # PROXY_THREAD.close()
+
