@@ -23,6 +23,21 @@ class FlintboxAllSpider(FlintboxSpider):
         'state': '',
         'zip': '',
         'country': 'Unknown'}
+    blacklist = ['Alberta\r\n  Association of Colleges and Technical Institutes', 'C4',
+                 'Canadian\r\n  Virtual College Consortium', 'Carnegie\r\n  Mellon University',
+                 "Children's\r\n  Hospital Los Angeles", 'Dalhousie\r\n  University',
+                 'Federal\r\n  Partners in Technology Transfer', 'Fuentek', 'Georgetown\r\n  University', 'KAUST',
+                 'Lawson\r\n  Health Research Institute', 'LifeSciences British Columbia', 'McGill\r\n  University',
+                 'McMaster\r\n  University', "Nationwide Children's\r\n  Hospital", 'Northwestern\r\n  University ',
+                 'Oklahoma\r\n  State University', 'Parteq\r\n  Innovations', 'Rice\r\n  University',
+                 'Rutgers\r\n  University', "St.\r\n  Jude Children's Research Hospital",
+                 'The\r\n  Scripps Research Institute', 'The\r\n  University of Kansas',
+                 'The\r\n  West Coast Licensing Partnership', 'Univalor', 'University\r\n  Health Network',
+                 'University\r\n  of British Columbia', 'University\r\n  of Cambridge', 'University\r\n  of Guelph',
+                 'University\r\n  of Iowa', 'University\r\n  of Louisville', 'University\r\n  of Manitoba',
+                 'University\r\n  of Massachusetts Lowell', 'University\r\n  of Massachusetts Medical School',
+                 'University\r\n  of Montana', 'University\r\n  of North Carolina Charlotte',
+                 'University\r\n  of Victoria', 'WBT', 'WORLDiscoveries']
 
     def parse_school_list(self, response: Response):
         if os.path.exists(os.path.join(self.work_directory, 'links.json')):
@@ -104,6 +119,8 @@ class FlintboxAllSpider(FlintboxSpider):
             school['abs'] = meta['Group Type']
         school['addr'] = deepcopy(self.address)
         school['addr']['line1'] = school['name']
+        if school['name'] in self.blacklist:
+            return
         patent_links = []
         if os.path.exists(os.path.join(self.work_directory, 'links.json')):
             patent_links = json.load(open(os.path.join(self.work_directory, 'links.json'), 'r'))
