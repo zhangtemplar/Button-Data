@@ -9,7 +9,7 @@ Add documentation of this module here.
 """
 
 
-class UniversityVictoriaSpider(FlintboxSpider):
+class WBTSpider(FlintboxSpider):
     name = 'WBT Innovation Marketplace'
     start_urls = ['https://wbt.flintbox.com/']
     address = {
