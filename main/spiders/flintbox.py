@@ -18,6 +18,9 @@ from proxy.pool import POOL
 
 
 class FlintboxSpider(ButtonSpider):
+    """
+    Note the div with id = 'dynamic_content' will not be presented when running without js.
+    """
     name = None
     allowed_domains = ['flintbox.com']
     start_urls = []
@@ -142,7 +145,7 @@ class FlintboxSpider(ButtonSpider):
         """
         result = {}
         # Note: if running with JS, the data can be found in //div[@id='dynamic_content']/table[2]/tbody/tr
-        for row in response.xpath("//div[@id='dynamic_content']/table/table/tr"):
+        for row in response.xpath("//table[@summary='Project Details']/table[@summary='Project Details']/tr"):
             try:
                 title = row.xpath("string(th)").get()
             except Exception as e:
@@ -198,7 +201,8 @@ class FlintboxSpider(ButtonSpider):
         """
         contact = {'email': '', 'phone': '', 'website': response.url, 'meet': ''}
         contact_title_found = False
-        for row in response.xpath("//div[@id='dynamic_content']/div[@class='subhead' or contains(@id, 'textelement')]"):
+        # Note: if running with JS, the data can be found in //div[@id='dynamic_content']/div[@class='subhead' or contains(@id, 'textelement')]
+        for row in response.xpath("//table[@summary='Project Details']/div[@class='subhead' or contains(@id, 'textelement')]"):
             if contact_title_found:
                 phone = extract_phone(row.xpath('string()').get())
                 if len(phone) > 0:
