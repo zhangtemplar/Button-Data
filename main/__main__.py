@@ -11,6 +11,24 @@ from scrapy.utils.project import get_project_settings
 from proxy.data5u import PROXY_THREAD
 
 
+def process_nouvant_parallel():
+    from main.spiders import nouvant
+    from main.spiders.nouvant import NouvantSpider
+    import os
+    for module in os.listdir(os.path.dirname(nouvant.__file__)):
+        if module == '__init__.py' or module[-3:] != '.py':
+            continue
+        __import__('main.spiders.' + module[:-3], locals(), globals())
+    del module
+    crawlers = NouvantSpider.__subclasses__()
+    print('Find crawlers: {}'.format([c.__name__ for c in crawlers]))
+    process = CrawlerProcess(settings=get_project_settings())
+    for c in crawlers:
+        process.crawl(c)
+    process.start()
+    PROXY_THREAD.close()
+
+
 def process_flint_parallel():
     from main.spiders import flintbox
     from main.spiders.flintbox import FlintboxSpider
