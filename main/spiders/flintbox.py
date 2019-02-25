@@ -64,6 +64,19 @@ class FlintboxSpider(ButtonSpider):
                 meta={'proxy': POOL.get()},
                 errback=self.handle_failure)
 
+    def get_name(self, response: Response):
+        if response is not None and 'school' in response.request.meta and 'name' in response.request.meta['school']\
+                and len(response.request.meta['school']['name']) > 0:
+            return response.request.meta['school']['name']
+        else:
+            return self.name
+
+    def get_address(self, response: Response):
+        if response is not None and 'school' in response.request.meta and 'addr' in response.request.meta['school']:
+            return response.request.meta['school']['addr']
+        else:
+            return self.address
+
     @staticmethod
     def _extract_dictionary(data: dict, regex_pattern: str) -> dict:
         """
@@ -111,7 +124,7 @@ class FlintboxSpider(ButtonSpider):
             del meta[k]
         product['asset']['market'] = dictionary_to_markdown(meta)
         product['contact'] = self.get_contact(response)
-        product['addr'] = deepcopy(self.address)
+        product['addr'] = deepcopy(self.get_address(response))
         inventors = self.add_inventors(response)
         for index, user in enumerate(inventors):
             user['abs'] = 'Inventor of ' + product['name']
@@ -215,7 +228,7 @@ class FlintboxSpider(ButtonSpider):
                         continue
                     user = create_user()
                     user['name'] = name
-                    user['exp']['exp']['company'] = self.name
+                    user['exp']['exp']['company'] = self.get_name(response)
                     inventors.append(user)
                     self.log('Found inventor {}'.format(user['name']), level=logging.DEBUG)
                 break
