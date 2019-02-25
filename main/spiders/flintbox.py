@@ -207,7 +207,7 @@ class FlintboxSpider(ButtonSpider):
                 phone = extract_phone(row.xpath('string()').get())
                 if len(phone) > 0:
                     contact['phone'] = phone[0]
-                email = row.xpath('//a/@href').split(':')
+                email = row.xpath('//a/@href').get().split(':')
                 if len(email) > 1:
                     contact['email'] = email[1]
                 self.log('Found contact {}'.format(contact), level=logging.DEBUG)
