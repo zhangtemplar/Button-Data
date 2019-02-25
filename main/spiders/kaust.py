@@ -2,7 +2,7 @@ from main.spiders.flintbox import FlintboxSpider
 
 
 class KaustSpider(FlintboxSpider):
-    name = 'Carnegie Mellon University'
+    name = 'King Abdullah University of Science and Technology'
     start_urls = ['https://kaust.flintbox.com/']
     address = {
         'line1': '',
