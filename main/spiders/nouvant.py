@@ -72,8 +72,11 @@ class NouvantSpider(ButtonSpider):
 
     def statistics(self, response: Response) -> dict:
         data = response.xpath("//div[@id='nouvant-portfolio-content']/div[@class='response']/em/text()").get()
-        for m in re.finditer('^([0-9]+)-([0-9]+)[a-zA-Z ]+([0-9]+)', data):
-            return {'start': m.group(1), 'end': m.group(2), 'total': m.group(3)}
+        try:
+            for m in re.finditer('^([0-9]+)-([0-9]+)[a-zA-Z ]+([0-9]+)', data):
+                return {'start': int(m.group(1)), 'end': int(m.group(2)), 'total': int(m.group(3))}
+        except Exception as e:
+            self.log('Fail to pass paginator {}: {}'.format(data, e), level=logging.ERROR)
         return {'start': 0, 'end': 0, 'total': 0}
 
     @staticmethod
