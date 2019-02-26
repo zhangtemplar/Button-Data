@@ -9,7 +9,7 @@ Add documentation of this module here.
 """
 
 
-class UniversityMassachusettsLowellSpider(FlintboxSpider):
+class UniversityNorthCarolinaCharlotteSpider(FlintboxSpider):
     name = 'University of North Carolina Charlotte'
     start_urls = ['https://uncc.flintbox.com/']
     address = {

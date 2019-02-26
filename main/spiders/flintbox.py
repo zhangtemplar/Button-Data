@@ -18,6 +18,9 @@ from proxy.pool import POOL
 
 
 class FlintboxSpider(ButtonSpider):
+    """
+    Note the div with id = 'dynamic_content' will not be presented when running without js.
+    """
     name = None
     allowed_domains = ['flintbox.com']
     start_urls = []
@@ -63,6 +66,19 @@ class FlintboxSpider(ButtonSpider):
                 dont_filter=True,
                 meta={'proxy': POOL.get()},
                 errback=self.handle_failure)
+
+    def get_name(self, response: Response):
+        if response is not None and 'school' in response.request.meta and 'name' in response.request.meta['school']\
+                and len(response.request.meta['school']['name']) > 0:
+            return response.request.meta['school']['name']
+        else:
+            return self.name
+
+    def get_address(self, response: Response):
+        if response is not None and 'school' in response.request.meta and 'addr' in response.request.meta['school']:
+            return response.request.meta['school']['addr']
+        else:
+            return self.address
 
     @staticmethod
     def _extract_dictionary(data: dict, regex_pattern: str) -> dict:
@@ -111,7 +127,7 @@ class FlintboxSpider(ButtonSpider):
             del meta[k]
         product['asset']['market'] = dictionary_to_markdown(meta)
         product['contact'] = self.get_contact(response)
-        product['addr'] = deepcopy(self.address)
+        product['addr'] = deepcopy(self.get_address(response))
         inventors = self.add_inventors(response)
         for index, user in enumerate(inventors):
             user['abs'] = 'Inventor of ' + product['name']
@@ -129,7 +145,7 @@ class FlintboxSpider(ButtonSpider):
         """
         result = {}
         # Note: if running with JS, the data can be found in //div[@id='dynamic_content']/table[2]/tbody/tr
-        for row in response.xpath("//div[@id='dynamic_content']/table/table/tr"):
+        for row in response.xpath("//table[@summary='Project Details']/table[@summary='Project Details']/tr"):
             try:
                 title = row.xpath("string(th)").get()
             except Exception as e:
@@ -185,12 +201,13 @@ class FlintboxSpider(ButtonSpider):
         """
         contact = {'email': '', 'phone': '', 'website': response.url, 'meet': ''}
         contact_title_found = False
-        for row in response.xpath("//div[@id='dynamic_content']/div[@class='subhead' or contains(@id, 'textelement')]"):
+        # Note: if running with JS, the data can be found in //div[@id='dynamic_content']/div[@class='subhead' or contains(@id, 'textelement')]
+        for row in response.xpath("//table[@summary='Project Details']/div[@class='subhead' or contains(@id, 'textelement')]"):
             if contact_title_found:
                 phone = extract_phone(row.xpath('string()').get())
                 if len(phone) > 0:
                     contact['phone'] = phone[0]
-                email = row.xpath('//a/@href').split(':')
+                email = row.xpath('//a/@href').get().split(':')
                 if len(email) > 1:
                     contact['email'] = email[1]
                 self.log('Found contact {}'.format(contact), level=logging.DEBUG)
@@ -215,7 +232,7 @@ class FlintboxSpider(ButtonSpider):
                         continue
                     user = create_user()
                     user['name'] = name
-                    user['exp']['exp']['company'] = self.name
+                    user['exp']['exp']['company'] = self.get_name(response)
                     inventors.append(user)
                     self.log('Found inventor {}'.format(user['name']), level=logging.DEBUG)
                 break
