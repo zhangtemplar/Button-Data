@@ -21,7 +21,7 @@ class ButtonSpider(scrapy.Spider):
     exclusive = False
 
     def __init__(self, with_proxy: bool = True):
-        super(scrapy.Spider, self).__init__()
+        super().__init__()
         self.with_proxy = with_proxy
         if self.with_proxy:
             self.proxyThread = PROXY_THREAD
