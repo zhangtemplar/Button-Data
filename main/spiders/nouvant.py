@@ -49,7 +49,7 @@ class NouvantSpider(ButtonSpider):
             self.log('found patent {}'.format(title), level=logging.INFO)
             patent_links.append({'title': title, 'link': link, 'abstract': abstract})
         statistics = self.statistics(response)
-        self.log('found {}/{} patents'.format(statistics['end'], statistics['total']))
+        self.log('found {}/{} patents'.format(statistics['end'], statistics['total']), level=logging.INFO)
         if statistics['end'] < statistics['total']:
             yield response.follow(
                 url='/technologies?limit=50&offset={}&query='.format(
