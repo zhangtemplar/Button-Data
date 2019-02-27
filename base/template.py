@@ -14,13 +14,13 @@ def create_relationship():
         "type": 0,
         "dstId": "",
         "name": "",
-        "end": None,
+        "end": "Thu, 01 Jan 1970 00:00:00 GMT",
         "srcId": "",
         "stat": 0,
         "abs": "",
         "detail": "",
         "tag": [],
-        "start": None,
+        "start": "Thu, 01 Jan 1970 00:00:00 GMT",
         "ref": ""
     }
 
