@@ -34,7 +34,8 @@ def process_flint_parallel():
     from main.spiders.flintbox import FlintboxSpider
     import os
     for module in os.listdir(os.path.dirname(flintbox.__file__)):
-        if module == '__init__.py' or module[-3:] != '.py':
+        # exclude flintbox all
+        if module == '__init__.py' or module[-3:] != '.py' or module[-3:] == 'flintbox_all.py':
             continue
         __import__('main.spiders.' + module[:-3], locals(), globals())
     del module
@@ -74,10 +75,10 @@ def start_sequentially(process: CrawlerProcess, crawlers: list):
 if __name__ == '__main__':
     # process_flint_parallel()
     # process_uc_sequentially()
-    process_nouvant_parallel()
-    # from main.spiders.minnesota import MinnesotaSpider
-    # process = CrawlerProcess(settings=get_project_settings())
-    # process.crawl(MinnesotaSpider)
-    # process.start()
-    # PROXY_THREAD.close()
+    # process_nouvant_parallel()
+    from main.spiders.flintbox_all import FlintboxAllSpider
+    process = CrawlerProcess(settings=get_project_settings())
+    process.crawl(FlintboxAllSpider)
+    process.start()
+    PROXY_THREAD.close()
 
