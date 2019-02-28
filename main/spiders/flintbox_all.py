@@ -7,6 +7,8 @@ from copy import deepcopy
 
 from scrapy import Request
 from scrapy.http import Response
+from scrapy_selenium import SeleniumRequest
+from selenium.webdriver.support.ui import WebDriverWait
 
 from base.template import create_company
 from main.spiders.flintbox import FlintboxSpider
@@ -39,6 +41,14 @@ class FlintboxAllSpider(FlintboxSpider):
                  'University\r\n  of Montana', 'University\r\n  of North Carolina Charlotte',
                  'University\r\n  of Victoria', 'WBT', 'WORLDiscoveries']
 
+    def start_requests(self):
+        for url in self.start_urls:
+            yield SeleniumRequest(
+                url=url,
+                dont_filter=True,
+                callback=self.parse_school_list,
+                errback=self.handle_failure_selenium)
+
     def parse_school_list(self, response: Response):
         if os.path.exists(os.path.join(self.work_directory, 'links.json')):
             school_links = json.load(open(os.path.join(self.work_directory, 'links.json'), 'r'))
@@ -46,6 +56,12 @@ class FlintboxAllSpider(FlintboxSpider):
             driver = self.get_driver(response)
             school_links = []
             while True:
+                wait = WebDriverWait(driver, 30)
+                try:
+                    wait.until(lambda x: len(x.find_elements_by_xpath("//table[@id='search-results' and @style='opacity: 1;']")) > 0)
+                except:
+                    self.log('Unable to retrieve school information', level=logging.ERROR)
+                    break
                 for row in response.xpath("//table[@id='search-results']/tr"):
                     title = row.xpath("//td[@class='search-results-major']/a/text()")
                     link = row.xpath("//td[@class='search-results-major']/a/@href")
@@ -61,7 +77,6 @@ class FlintboxAllSpider(FlintboxSpider):
                     except Exception as e:
                         self.log('Fail to go to page {}'.format(stat['current'] + 1), level=logging.ERROR)
                         break
-                        pass
                 else:
                     break
                 time.sleep(3)
