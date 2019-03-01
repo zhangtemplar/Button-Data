@@ -37,7 +37,7 @@ def parse_page(slug: str):
         try:
             proxies = POOL.get()
             response = get(
-                'http://innovation.columbia.edu/technologies/{}'.format(slug),
+                'http://innovation.columbia.edu/api/pub-opportunity/{}'.format(slug),
                 proxies={'http': proxies, 'https': proxies})
             if 200 <= response.status_code < 300:
                 data = response.json()
