@@ -55,21 +55,23 @@ class FlintboxAllSpider(FlintboxSpider):
         else:
             driver = self.get_driver(response)
             school_links = []
+            page = 1
             while True:
-                for row in response.xpath("//table[@id='search-results']/tr"):
-                    title = row.xpath("//td[@class='search-results-major']/a/text()")
-                    link = row.xpath("//td[@class='search-results-major']/a/@href")
+                for row in response.xpath("//table[@id='search-results']/tbody/tr"):
+                    title = row.xpath("//td[@class='search-results-major']/a/text()").get()
+                    link = row.xpath("//td[@class='search-results-major']/a/@href").get()
                     school_links.append({'name': title, 'link': link})
                     self.log('find school {}'.format(title), level=logging.INFO)
-                stat = self.statistics(response)
-                self.log('Finish page {}/{}'.format(stat['current'], stat['total']), level=logging.INFO)
-                if stat['current'] < stat['total']:
+                total_page = self.statistics(response)
+                self.log('Finish page {}/{}'.format(page, total_page), level=logging.INFO)
+                if page < total_page:
                     try:
                         next_page = driver.find_element_by_xpath("//img[@class='paginator-next-page paginator-button']")
                         if next_page is not None:
                             next_page.click()
+                        page += 1
                     except Exception as e:
-                        self.log('Fail to go to page {}'.format(stat['current'] + 1), level=logging.ERROR)
+                        self.log('Fail to go to page {}'.format(page + 1), level=logging.ERROR)
                         break
                 else:
                     break
@@ -91,15 +93,13 @@ class FlintboxAllSpider(FlintboxSpider):
                 meta={'proxy': POOL.get()} if self.with_proxy else {},
                 errback=self.handle_failure)
 
-    def statistics(self, response) -> dict:
+    def statistics(self, response) -> int:
         """
         Get the statistics from the table.
 
         :return dict(str, object)
         """
-        return {
-            'current': int(response.xpath("//input[@name='page_jump']/@value").get()),
-            'total': int(response.xpath("//span[@class='paginator_totalpages_search-results']/text()").get())}
+        return int(response.xpath("//span[@class='paginator_totalpages_search-results']/text()").get())
 
     def get_school_information(self, response: Response) -> dict:
         """
