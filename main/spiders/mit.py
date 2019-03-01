@@ -37,11 +37,12 @@ class MitSpider(ButtonSpider):
             yield Request(
                 url=url,
                 dont_filter=True,
-                callback=self.parse_list,
+                callback=self.parse_category,
                 errback=self.handle_failure)
 
     def parse_category(self, response: Response):
-        for row in response.xpath("//div[@class='split-taxonomy-4']/ul/li/a/@href").getall():
+        # with javascript it would be //div[@class='split-taxonomy-4']/ul/li/a/@href
+        for row in response.xpath("//section[@id='block-taxonomy-menu-block-1']/ul/li/a/@href").getall():
             self.log('find category {}'.format(row), level=logging.INFO)
             yield response.follow(
                 url=row,
@@ -60,7 +61,8 @@ class MitSpider(ButtonSpider):
             link = row.xpath("@href").get()
             patent_links.append({'name': name, 'link': link})
             self.log('found patents {}'.format(name), level=logging.INFO)
-        if response.url != response.xpath("//li[@class='pager-last']/a/@href").get():
+        if response.xpath("//li[@class='pager-last']/a/@href").get() is not None and\
+                response.url != response.xpath("//li[@class='pager-last']/a/@href").get():
             # have next page
             if '?page=' in response.url:
                 elements = response.url.split("=")
@@ -106,7 +108,7 @@ class MitSpider(ButtonSpider):
     def parse(self, response):
         self.log('Parse technology {}'.format(response.url), level=logging.INFO)
         name = response.url.split('/')[-1]
-        with open(os.path.join(self.work_directory, name), 'wb') as fo:
+        with open(os.path.join(self.work_directory, name + '.html'), 'wb') as fo:
             fo.write(response.body)
         product = create_product()
         product['name'] = response.xpath("//h1[@id='page-title']/text()").get()
@@ -138,13 +140,13 @@ class MitSpider(ButtonSpider):
 
         inventors = self.add_inventors(response)
         for index, user in enumerate(inventors):
-            user['abs'] = 'Inventor of ' + product['name']
+            if len(user['abs']) < 1:
+                user['abs'] = 'Inventor of ' + product['name']
             user['addr'] = product['addr']
-            user['tag'] = product['tag']
 
         patents = self.get_patents(response)
         publications = self.get_publications(response)
-        with open(os.path.join(self.work_directory, name[:-4] + 'json'), 'w') as fo:
+        with open(os.path.join(self.work_directory, name + 'json'), 'w') as fo:
             json.dump({'product': product, 'inventors': inventors, 'patents': patents, 'publications': publications},
                       fo)
 
@@ -169,7 +171,7 @@ class MitSpider(ButtonSpider):
         inventors = []
         for row in response.xpath("//div[contains(@class, 'node-inventor')]"):
             name = row.xpath("string(h2)").get()
-            link = row.xpath("h2//a/@href").get()
+            link = 'http://tlo.mit.edu' + row.xpath("h2//a/@href").get()
             department = row.xpath("string(div[@class='content']/div[contains(@class, 'field-name-field-depa')])").get()
             title = row.xpath(
                 "string(div[@class='content']/div[contains(@class, 'field-name-field-link-title')])").get()
@@ -215,11 +217,11 @@ class MitSpider(ButtonSpider):
                 "//div[contains(@class, 'field-collection-item-field-ip-info')]/div[@class='content']"):
             title = row.xpath("string(div[contains(@class, 'field-name-field-ip-title')])").get()
             tag = row.xpath("string(div[contains(@class, 'field-name-field-ip-type')])").get()
-            link = row.xpath("div[contains(@class, 'field-name-field-ip-number-pctwo')]//a/@href").get()
+            link = row.xpath("div[contains(@class, 'field-name-field-ip-number-pctwo') or contains(@class, 'field-name-field-ip-number-pat-pend')]//a/@href").get()
             patent = create_product()
             patent['asset']['type'] = 1
-            patent['ref'] = link
-            patent['contact']['website'] = link
+            patent['ref'] = link if link is not None else ''
+            patent['contact']['website'] = link if link is not None else ''
             patent['name'] = title
             patent['tag'] = remove_empty_string_from_array([tag])
         return patents
