@@ -17,10 +17,10 @@ def find_list() -> list:
         results = json.load(open(os.path.join(work_directory, 'links.json'), 'r'))
     else:
         results = []
-        for page in range(1, 75):
+        for page in range(1, 77):
             log.info('process page {}'.format(page))
             response = get(
-                'http://techfinder.stanford.edu/api/searchResults?qs=&fs=&p={}&docType=pub-opportunities&sort=relevance&precision=100'.format(
+                'http://innovation.columbia.edu/api/searchResults?qs=&fs=&p={}&docType=pub-opportunities&sort=relevance&precision=100'.format(
                     page))
             time.sleep(random.random())
             if 200 <= response.status_code < 300:
@@ -37,7 +37,7 @@ def parse_page(slug: str):
         try:
             proxies = POOL.get()
             response = get(
-                'http://techfinder.stanford.edu/api/pub-opportunity/{}'.format(slug),
+                'http://innovation.columbia.edu/technologies/{}'.format(slug),
                 proxies={'http': proxies, 'https': proxies})
             if 200 <= response.status_code < 300:
                 data = response.json()
