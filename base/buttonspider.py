@@ -53,12 +53,12 @@ class ButtonSpider(scrapy.Spider):
             errback=self.handle_failure_selenium)
 
     def handle_failure(self, failure):
-        old_proxy = failure.request.meta['proxy']
+        old_proxy = failure.request.meta.get('proxy', '')
         self.log('fail to collect {} with {}\n{}'.format(failure.request.url, old_proxy, failure), level=logging.ERROR)
         # if self.with_proxy:
         #     POOL.remove(old_proxy)
         # try with a new proxy
-        new_proxy = POOL.get() if not self.exclusive else POOL.pop()
+        new_proxy = (POOL.get() if not self.exclusive else POOL.pop()) if self.with_proxy else ''
         self.log('restart from the failed url {} with {}'.format(failure.request.url, new_proxy), level=logging.INFO)
         yield scrapy.Request(
             url=failure.request.url,
