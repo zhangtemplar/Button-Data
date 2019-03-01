@@ -56,19 +56,13 @@ class FlintboxAllSpider(FlintboxSpider):
             driver = self.get_driver(response)
             school_links = []
             while True:
-                wait = WebDriverWait(driver, 30)
-                try:
-                    wait.until(lambda x: len(x.find_elements_by_xpath("//table[@id='search-results' and @style='opacity: 1;']")) > 0)
-                except:
-                    self.log('Unable to retrieve school information', level=logging.ERROR)
-                    break
                 for row in response.xpath("//table[@id='search-results']/tr"):
                     title = row.xpath("//td[@class='search-results-major']/a/text()")
                     link = row.xpath("//td[@class='search-results-major']/a/@href")
                     school_links.append({'name': title, 'link': link})
                     self.log('find school {}'.format(title), level=logging.INFO)
                 stat = self.statistics(response)
-                self.log('Finish page {}/{}'.format(stat['current'], stat['total']))
+                self.log('Finish page {}/{}'.format(stat['current'], stat['total']), level=logging.INFO)
                 if stat['current'] < stat['total']:
                     try:
                         next_page = driver.find_element_by_xpath("//img[@class='paginator-next-page paginator-button']")
@@ -80,6 +74,12 @@ class FlintboxAllSpider(FlintboxSpider):
                 else:
                     break
                 time.sleep(3)
+                wait = WebDriverWait(driver, 30)
+                try:
+                    wait.until(lambda x: len(x.find_elements_by_xpath("//table[@id='search-results' and @style='opacity: 1;']")) > 0)
+                except Exception as e:
+                    self.log('Unable to retrieve school information: {}'.format(e), level=logging.ERROR)
+                    break
             with open(os.path.join(self.work_directory, 'links.json'), 'w') as fo:
                 json.dump(school_links, fo)
 
@@ -88,7 +88,7 @@ class FlintboxAllSpider(FlintboxSpider):
                 url=s['link'],
                 callback=self.parse_list,
                 dont_filter=True,
-                meta={'proxy': POOL.get()},
+                meta={'proxy': POOL.get()} if self.with_proxy else {},
                 errback=self.handle_failure)
 
     def statistics(self, response) -> dict:
@@ -98,8 +98,8 @@ class FlintboxAllSpider(FlintboxSpider):
         :return dict(str, object)
         """
         return {
-            'current': int(response.xpath("//input[@name='page_jump']/@value")),
-            'total': int(response.xpath("//span[@class='paginator_totalpages_search-results']"))}
+            'current': int(response.xpath("//input[@name='page_jump']/@value").get()),
+            'total': int(response.xpath("//span[@class='paginator_totalpages_search-results']/text()").get())}
 
     def get_school_information(self, response: Response) -> dict:
         """
@@ -156,5 +156,5 @@ class FlintboxAllSpider(FlintboxSpider):
                 url=p,
                 callback=self.parse,
                 dont_filter=True,
-                meta={'proxy': POOL.get(), 'school': school},
+                meta={'proxy': POOL.get(), 'school': school} if self.with_proxy else {'school': school},
                 errback=self.handle_failure)

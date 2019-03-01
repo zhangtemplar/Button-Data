@@ -23,8 +23,8 @@ class NouvantSpider(ButtonSpider):
     start_urls = []
     address = None
 
-    def __init__(self=True):
-        super().__init__(True)
+    def __init__(self):
+        super().__init__(False)
         self.work_directory = os.path.expanduser('~/Downloads/{}'.format(self.name))
         if not os.path.exists(self.work_directory):
             os.mkdir(self.work_directory)
@@ -34,7 +34,7 @@ class NouvantSpider(ButtonSpider):
             yield Request(
                 url=url,
                 dont_filter=True,
-                meta={'proxy': POOL.get()},
+                meta={'proxy': POOL.get()} if self.with_proxy else {},
                 callback=self.parse_list,
                 errback=self.handle_failure)
 
@@ -56,7 +56,7 @@ class NouvantSpider(ButtonSpider):
                     statistics['end']),
                 callback=self.parse_list,
                 dont_filter=True,
-                meta={'proxy': POOL.get()},
+                meta={'proxy': POOL.get()} if self.with_proxy else {},
                 errback=self.handle_failure)
         for p in patent_links:
             name = p['link'].split('/')[-1]
@@ -67,7 +67,7 @@ class NouvantSpider(ButtonSpider):
                 url=p['link'],
                 callback=self.parse,
                 dont_filter=True,
-                meta={'proxy': POOL.get()},
+                meta={'proxy': POOL.get()} if self.with_proxy else {},
                 errback=self.handle_failure)
 
     def statistics(self, response: Response) -> dict:

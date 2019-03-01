@@ -37,7 +37,7 @@ class FlintboxSpider(ButtonSpider):
             yield Request(
                 url=url,
                 dont_filter=True,
-                meta={'proxy': POOL.get()},
+                meta={'proxy': POOL.get()} if self.with_proxy else {},
                 callback=self.parse_list,
                 errback=self.handle_failure)
 
@@ -64,7 +64,7 @@ class FlintboxSpider(ButtonSpider):
                 url=p,
                 callback=self.parse,
                 dont_filter=True,
-                meta={'proxy': POOL.get()},
+                meta={'proxy': POOL.get()} if self.with_proxy else {},
                 errback=self.handle_failure)
 
     def get_name(self, response: Response):
