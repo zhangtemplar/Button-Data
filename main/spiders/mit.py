@@ -3,26 +3,21 @@ import json
 import logging
 import os
 import re
-import time
 from copy import deepcopy
 
-from dateutil.parser import parse
 from scrapy import Request
 from scrapy.http import Response
-from scrapy_selenium import SeleniumRequest
-from selenium.webdriver.chrome.webdriver import WebDriver
-from selenium.webdriver.support.wait import WebDriverWait
 
 from base.buttonspider import ButtonSpider
 from base.template import create_product, create_user
-from base.util import dictionary_to_markdown, extract_phone, remove_empty_string_from_array
+from base.util import dictionary_to_markdown, remove_empty_string_from_array
 from proxy.pool import POOL
 
 
 class MitSpider(ButtonSpider):
     name = 'Massachusetts Institute of Technology'
     allowed_domains = ['tlo.mit.edu']
-    start_urls = []
+    start_urls = ['http://tlo.mit.edu/explore-mit-technologies/view-technologies']
     address = {
         'line1': '255 Main Street',
         'line2': 'Room NE18-501',
@@ -59,7 +54,8 @@ class MitSpider(ButtonSpider):
         # wait for page to load
         # wait for the redirect to finish.
         patent_links = []
-        for row in response.xpath("//section[@id='block-system-main']/div[@class='node node-technology node-teaser clearfix']/h2/a"):
+        for row in response.xpath(
+                "//section[@id='block-system-main']/div[@class='node node-technology node-teaser clearfix']/h2/a"):
             name = row.xpath("text()").get()
             link = row.xpath("@href").get()
             patent_links.append({'name': name, 'link': link})
@@ -71,7 +67,7 @@ class MitSpider(ButtonSpider):
                 page = (int(elements[-1]) + 1)
                 self.log('go to page {}'.format(page), level=logging.INFO)
                 yield response.follow(
-                    url='='.join(elements[:-1]) + '=' + page,
+                    url='='.join(elements[:-1]) + '={}'.format(page),
                     dont_filter=True,
                     meta={'proxy': POOL.get()} if self.with_proxy else {},
                     callback=self.parse_list,
@@ -149,8 +145,8 @@ class MitSpider(ButtonSpider):
         patents = self.get_patents(response)
         publications = self.get_publications(response)
         with open(os.path.join(self.work_directory, name[:-4] + 'json'), 'w') as fo:
-            json.dump({'product': product, 'inventors': inventors, 'patents': patents, 'publications': publications}, fo)
-
+            json.dump({'product': product, 'inventors': inventors, 'patents': patents, 'publications': publications},
+                      fo)
 
     def get_contact(self, response: Response) -> dict:
         """
@@ -175,7 +171,8 @@ class MitSpider(ButtonSpider):
             name = row.xpath("string(h2)").get()
             link = row.xpath("h2//a/@href").get()
             department = row.xpath("string(div[@class='content']/div[contains(@class, 'field-name-field-depa')])").get()
-            title = row.xpath("string(div[@class='content']/div[contains(@class, 'field-name-field-link-title')])").get()
+            title = row.xpath(
+                "string(div[@class='content']/div[contains(@class, 'field-name-field-link-title')])").get()
             user = create_user()
             user['name'] = name
             user['exp']['exp']['company'] = self.name
@@ -214,7 +211,8 @@ class MitSpider(ButtonSpider):
         :return list of patents
         """
         patents = []
-        for row in response.xpath("//div[contains(@class, 'field-collection-item-field-ip-info')]/div[@class='content']"):
+        for row in response.xpath(
+                "//div[contains(@class, 'field-collection-item-field-ip-info')]/div[@class='content']"):
             title = row.xpath("string(div[contains(@class, 'field-name-field-ip-title')])").get()
             tag = row.xpath("string(div[contains(@class, 'field-name-field-ip-type')])").get()
             link = row.xpath("div[contains(@class, 'field-name-field-ip-number-pctwo')]//a/@href").get()
@@ -234,7 +232,8 @@ class MitSpider(ButtonSpider):
         :return list of patents
         """
         patents = []
-        for row in response.xpath("//div[contains(@class, 'field-collection-item-field-publications')]/div[@class='content']"):
+        for row in response.xpath(
+                "//div[contains(@class, 'field-collection-item-field-publications')]/div[@class='content']"):
             title = row.xpath("string(div[contains(@class, 'field-name-field-link')])").get()
             other = row.xpath("string(div[contains(@class, 'field-name-field-date-and-other-info')])").get()
             link = row.xpath("div[contains(@class, 'field-name-field-link')]//a/@href").get()
