@@ -25,21 +25,21 @@ class FlintboxAllSpider(FlintboxSpider):
         'state': '',
         'zip': '',
         'country': 'Unknown'}
-    blacklist = ['Alberta\r\n  Association of Colleges and Technical Institutes', 'C4',
-                 'Canadian\r\n  Virtual College Consortium', 'Carnegie\r\n  Mellon University',
-                 "Children's\r\n  Hospital Los Angeles", 'Dalhousie\r\n  University',
-                 'Federal\r\n  Partners in Technology Transfer', 'Fuentek', 'Georgetown\r\n  University', 'KAUST',
-                 'Lawson\r\n  Health Research Institute', 'LifeSciences British Columbia', 'McGill\r\n  University',
-                 'McMaster\r\n  University', "Nationwide Children's\r\n  Hospital", 'Northwestern\r\n  University ',
-                 'Oklahoma\r\n  State University', 'Parteq\r\n  Innovations', 'Rice\r\n  University',
-                 'Rutgers\r\n  University', "St.\r\n  Jude Children's Research Hospital",
-                 'The\r\n  Scripps Research Institute', 'The\r\n  University of Kansas',
-                 'The\r\n  West Coast Licensing Partnership', 'Univalor', 'University\r\n  Health Network',
-                 'University\r\n  of British Columbia', 'University\r\n  of Cambridge', 'University\r\n  of Guelph',
-                 'University\r\n  of Iowa', 'University\r\n  of Louisville', 'University\r\n  of Manitoba',
-                 'University\r\n  of Massachusetts Lowell', 'University\r\n  of Massachusetts Medical School',
-                 'University\r\n  of Montana', 'University\r\n  of North Carolina Charlotte',
-                 'University\r\n  of Victoria', 'WBT', 'WORLDiscoveries']
+    blacklist = ['Alberta  Association of Colleges and Technical Institutes', 'C4',
+                 'Canadian  Virtual College Consortium', 'Carnegie  Mellon University',
+                 "Children's  Hospital Los Angeles", 'Dalhousie  University',
+                 'Federal  Partners in Technology Transfer', 'Fuentek', 'Georgetown  University', 'KAUST',
+                 'Lawson  Health Research Institute', 'LifeSciences British Columbia', 'McGill  University',
+                 'McMaster  University', "Nationwide Children's  Hospital", 'Northwestern  University ',
+                 'Oklahoma  State University', 'Parteq  Innovations', 'Rice  University',
+                 'Rutgers  University', "St.  Jude Children's Research Hospital",
+                 'The  Scripps Research Institute', 'The  University of Kansas',
+                 'The  West Coast Licensing Partnership', 'Univalor', 'University  Health Network',
+                 'University  of British Columbia', 'University  of Cambridge', 'University  of Guelph',
+                 'University  of Iowa', 'University  of Louisville', 'University  of Manitoba',
+                 'University  of Massachusetts Lowell', 'University  of Massachusetts Medical School',
+                 'University  of Montana', 'University  of North Carolina Charlotte',
+                 'University  of Victoria', 'WBT', 'WORLDiscoveries']
 
     def start_requests(self):
         for url in self.start_urls:
@@ -57,9 +57,9 @@ class FlintboxAllSpider(FlintboxSpider):
             school_links = []
             page = 1
             while True:
-                for row in response.xpath("//table[@id='search-results']/tbody/tr"):
-                    title = row.xpath("//td[@class='search-results-major']/a/text()").get()
-                    link = row.xpath("//td[@class='search-results-major']/a/@href").get()
+                for row in driver.find_elements_by_xpath("//table[@id='search-results']/tbody/tr"):
+                    title = row.find_element_by_xpath("td[@class='search-results-major']/a").text
+                    link = row.find_element_by_xpath("td[@class='search-results-major']/a").get_attribute('href')
                     school_links.append({'name': title, 'link': link})
                     self.log('find school {}'.format(title), level=logging.INFO)
                 total_page = self.statistics(response)
@@ -113,12 +113,12 @@ class FlintboxAllSpider(FlintboxSpider):
             if key == 'URL':
                 value = row.xpath("td/a/@href").get()
             else:
-                value = row.xpath("string(th)").get()
+                value = row.xpath("string(td)").get()
             result[key] = value
         return result
 
     def parse_list(self, response):
-        self.log('Parse technology {}'.format(response.url), level=logging.INFO)
+        self.log('Parse list {}'.format(response.url), level=logging.INFO)
         name = response.url.split('/')[-1]
         with open(os.path.join(self.work_directory, name + '.html'), 'wb') as fo:
             fo.write(response.body)
@@ -137,15 +137,15 @@ class FlintboxAllSpider(FlintboxSpider):
         if school['name'] in self.blacklist:
             return
         patent_links = []
-        if os.path.exists(os.path.join(self.work_directory, 'links.json')):
-            patent_links = json.load(open(os.path.join(self.work_directory, 'links.json'), 'r'))
+        if os.path.exists(os.path.join(self.work_directory, school['name'] + '.json')):
+            patent_links = json.load(open(os.path.join(self.work_directory, school['name'] + '.json'), 'r'))
         else:
             # the id of product is provded in the <script></script>
             for code in response.xpath("//script").getall():
                 if 'id_list' in code:
                     ids = re.findall(r'[0-9]+', re.findall(r'\[[0-9,]+\]', code)[0])
-                    patent_links = [response.url + '/public/project/{}'.format(patentId) for patentId in ids]
-            with open(os.path.join(self.work_directory, 'links.json'), 'w') as fo:
+                    patent_links = ['https://www.flintbox.com/public/project/{}'.format(patentId) for patentId in ids]
+            with open(os.path.join(self.work_directory, school['name'] + '.json'), 'w') as fo:
                 json.dump(patent_links, fo)
         for p in patent_links:
             name = p.split('/')[-1]
