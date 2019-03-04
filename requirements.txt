@@ -1,0 +1,9 @@
+scrapy
+selenium
+scrapy-selenium
+requests
+openpyxl
+tabula
+xmltodict
+lxml
+mongoengine
