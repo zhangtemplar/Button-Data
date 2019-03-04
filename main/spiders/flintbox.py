@@ -26,8 +26,9 @@ class FlintboxSpider(ButtonSpider):
     start_urls = []
     address = None
 
-    def __init__(self):
-        super().__init__(False)
+    def __init__(self, with_proxy: bool = False):
+        super().__init__(with_proxy)
+        self.name = self.name.replace('/', '')
         self.work_directory = os.path.expanduser('~/Downloads/{}'.format(self.name))
         if not os.path.exists(self.work_directory):
             os.mkdir(self.work_directory)

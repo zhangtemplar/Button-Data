@@ -118,3 +118,13 @@ def extract_phone(text):
     for m in re.finditer('\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}', text):
         result.append(m.group())
     return result
+
+
+def remove_head_tail_white_space(text: str) -> str:
+    """
+    Remove the heading and tailing white space character
+    :param text: input text
+    :return: a string
+    """
+    text = re.sub('^(\s+)', '', text)
+    return re.sub('(\s+)$', '', text)

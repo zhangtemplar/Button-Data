@@ -41,6 +41,9 @@ class FlintboxAllSpider(FlintboxSpider):
                  'University  of Montana', 'University  of North Carolina Charlotte',
                  'University  of Victoria', 'WBT', 'WORLDiscoveries']
 
+    def __init__(self):
+        super().__init__(False)
+
     def start_requests(self):
         for url in self.start_urls:
             yield SeleniumRequest(
