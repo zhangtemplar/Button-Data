@@ -5,23 +5,21 @@ import os
 import re
 from copy import deepcopy
 
-from scrapy_selenium import SeleniumRequest
+from dateutil.parser import parse
 from scrapy.http import Response
-from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.chrome.webdriver import WebDriver
+from scrapy_selenium import SeleniumRequest
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions
 
-from selenium.webdriver.support.wait import WebDriverWait
 from base.buttonspider import ButtonSpider
 from base.template import create_product, create_user
-from base.util import dictionary_to_markdown, remove_head_tail_white_space, remove_empty_string_from_array, extract_phone, extract_dictionary
-from proxy.pool import POOL
-from dateutil.parser import parse
+from base.util import dictionary_to_markdown, remove_head_tail_white_space, remove_empty_string_from_array, \
+    extract_phone, extract_dictionary
 
 
 class JohnsHopkinsSpider(ButtonSpider):
     name = 'JohnsHopkins University'
-    allowed_domains = ['otd.harvard.edu']
+    allowed_domains = ['jhu.technologypublisher.com']
     start_urls = ['http://jhu.technologypublisher.com/']
     address = {
         'line1': '1812 Ashland Avenue',
@@ -46,7 +44,8 @@ class JohnsHopkinsSpider(ButtonSpider):
                 dont_filter=True,
                 callback=self.parse_list,
                 wait_time=30,
-                wait_until=expected_conditions.presence_of_element_located((By.XPATH, "//div[@id='hits-container']/div")),
+                wait_until=expected_conditions.presence_of_element_located(
+                    (By.XPATH, "//div[@id='hits-container']/div")),
                 errback=self.handle_failure_selenium)
 
     def parse_name_from_url(self, url):
@@ -70,7 +69,8 @@ class JohnsHopkinsSpider(ButtonSpider):
         if self.page * self.item_per_page < total_result:
             self.log('process page {}'.format(self.page), level=logging.INFO)
             yield SeleniumRequest(
-                url='http://jhu.technologypublisher.com/?q=&hPP=20&idx=Prod_Inteum_TechnologyPublisher_jhu&p={}'.format(self.page),
+                url='http://jhu.technologypublisher.com/?q=&hPP=20&idx=Prod_Inteum_TechnologyPublisher_jhu&p={}'.format(
+                    self.page),
                 dont_filter=True,
                 wait_time=30,
                 callback=self.parse_list,
