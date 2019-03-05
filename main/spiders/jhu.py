@@ -145,7 +145,7 @@ class JohnsHopkinsSpider(ButtonSpider):
         product['contact'] = contact
 
         with open(os.path.join(self.work_directory, name + '.json'), 'w') as fo:
-            json.dump({'product': product, 'inventors': inventors, 'contact': contact}, fo)
+            json.dump({'product': product, 'inventors': inventors}, fo)
 
     def get_meta(self, response: Response) -> dict:
         """
@@ -154,7 +154,7 @@ class JohnsHopkinsSpider(ButtonSpider):
         :return dict(str, object)
         """
         text = remove_head_tail_white_space(response.xpath("string(//td[1]/div[@class='c_tp_description'])").get())
-        titles = response.xpath("//td[1]/div[@class='c_tp_description']/b/text()").getall()
+        titles = response.xpath("//td[1]/div[@class='c_tp_description']/b/text()").getall()[1:]
         if len(titles) < 1:
             return {'Abstract': text}
         start = text.find(titles[0])
@@ -174,7 +174,7 @@ class JohnsHopkinsSpider(ButtonSpider):
         :return a list of inventors
         """
         inventors = []
-        for name in response.xpath("//div[@id='inventorLinks']/div/a/text()"):
+        for name in response.xpath("//div[@id='inventorLinks']/div/a/text()").getall():
             if len(name) < 1:
                 continue
             user = create_user()
