@@ -135,12 +135,12 @@ class JohnsHopkinsSpider(ButtonSpider):
         product['intro'] = dictionary_to_markdown(meta)
         product['asset']['type'] = 3
         product['addr'] = deepcopy(self.address)
+        product['tag'] = self.add_tags(response)
         inventors = self.add_inventors(response)
         for index, user in enumerate(inventors):
             user['abs'] = 'Inventor of ' + product['name']
             user['addr'] = product['addr']
             user['tag'] = product['tag']
-        product['tag'] = self.add_tags(response)
         contact = self.get_contact(response)
         product['contact'] = contact
 

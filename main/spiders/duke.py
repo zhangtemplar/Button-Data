@@ -97,11 +97,11 @@ class DukeSpider(ButtonSpider):
         product['asset']['type'] = 3
         product['addr'] = deepcopy(self.address)
         inventors = self.add_inventors(response)
+        product['tag'] = self.add_tags(response)
         for index, user in enumerate(inventors):
             user['abs'] = 'Inventor of ' + product['name']
             user['addr'] = product['addr']
             user['tag'] = product['tag']
-        product['tag'] = self.add_tags(response)
         product['contact'] = self.get_contact(response)
 
         with open(os.path.join(self.work_directory, name + '.json'), 'w') as fo:
