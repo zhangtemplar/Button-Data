@@ -10,7 +10,7 @@ from scrapy.http import Response
 
 from base.buttonspider import ButtonSpider
 from base.template import create_product, create_user
-from base.util import dictionary_to_markdown, remove_empty_string_from_array
+from base.util import dictionary_to_markdown, remove_empty_string_from_array, extract_dictionary
 from proxy.pool import POOL
 
 
@@ -117,15 +117,15 @@ class MitSpider(ButtonSpider):
         product['addr'] = deepcopy(self.address)
         product['asset']['type'] = 3
         description = self.get_description(response)
-        abstract = self._extract_dictionary(description, 'Applications')
+        abstract = extract_dictionary(description, 'Applications')
         product['abs'] = '\n'.join(abstract.values())
         if len(product['abs']) < 1:
             product['abs'] = next(iter(description.values()))
         if len(product['abs']) < 1:
             product['abs'] = product['name']
-        market = self._extract_dictionary(description, 'Advantages')
+        market = extract_dictionary(description, 'Advantages')
         product['asset']['market'] = '\n'.join(market.values())
-        tech = self._extract_dictionary(description, 'Technology')
+        tech = extract_dictionary(description, 'Technology')
         product['asset']['tech'] = '\n'.join(tech.values())
         for k in abstract:
             del description[k]

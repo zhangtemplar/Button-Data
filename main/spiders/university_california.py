@@ -15,7 +15,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 
 from base.buttonspider import ButtonSpider
 from base.template import create_product, create_user
-from base.util import dictionary_to_markdown, extract_phone
+from base.util import dictionary_to_markdown, extract_phone, extract_dictionary
 from proxy.pool import POOL
 
 
@@ -101,13 +101,13 @@ class UniversityCaliforniaSpider(ButtonSpider):
         product['addr'] = deepcopy(self.address)
         product['asset']['type'] = 3
         description = self.get_description(response)
-        abstract = self._extract_dictionary(description, 'brief|Brief|BRIEF')
+        abstract = extract_dictionary(description, 'brief|Brief|BRIEF')
         product['abs'] = '\n'.join(abstract.values())
         if len(product['abs']) < 1:
             product['abs'] = next(iter(description.values()))
         if len(product['abs']) < 1:
             product['abs'] = product['name']
-        introduction = self._extract_dictionary(description, 'full|Full|FULL')
+        introduction = extract_dictionary(description, 'full|Full|FULL')
         product['intro'] = '\n'.join(introduction.values())
         for k in abstract:
             del description[k]

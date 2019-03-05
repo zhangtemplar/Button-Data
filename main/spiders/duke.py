@@ -11,7 +11,7 @@ from scrapy.http import Response
 from base.buttonspider import ButtonSpider
 from base.template import create_product, create_user
 from base.util import dictionary_to_markdown, extract_phone, remove_head_tail_white_space, \
-    remove_empty_string_from_array
+    remove_empty_string_from_array, extract_dictionary
 from proxy.pool import POOL
 
 
@@ -80,7 +80,7 @@ class DukeSpider(ButtonSpider):
         product['contact']['website'] = response.url
         product['name'] = response.xpath("string(//h1)").get()
         meta = self.get_meta(response)
-        abstract = self._extract_dictionary(meta, 'Advantage|advantage|Abstract')
+        abstract = extract_dictionary(meta, 'Advantage|advantage|Abstract')
         product['abs'] = '\n'.join(abstract.values())
         if len(product['abs']) < 1:
             product['abs'] = next(iter(meta.values()))

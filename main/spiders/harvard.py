@@ -10,7 +10,7 @@ from scrapy.http import Response
 
 from base.buttonspider import ButtonSpider
 from base.template import create_product, create_user
-from base.util import dictionary_to_markdown
+from base.util import dictionary_to_markdown, extract_dictionary
 from proxy.pool import POOL
 
 
@@ -106,9 +106,9 @@ class HarvardSpider(ButtonSpider):
         product['contact']['website'] = response.url
         product['name'] = response.xpath("string(//h2)").get()
         meta = self.get_meta(response)
-        market = self._extract_dictionary(meta, 'Applications')
+        market = extract_dictionary(meta, 'Applications')
         product['asset']['market'] = '\n'.join(market.values())
-        summary = self._extract_dictionary(meta, 'Summary')
+        summary = extract_dictionary(meta, 'Summary')
         product['intro'] = '\n'.join(summary.values())
         product['abs'] = product['intro'][:product['intro'].find('. ') + 1]
         if len(product['abs']) < 1:

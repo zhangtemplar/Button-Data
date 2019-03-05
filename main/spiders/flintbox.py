@@ -13,7 +13,7 @@ from scrapy.selector import Selector
 
 from base.buttonspider import ButtonSpider
 from base.template import create_product, create_user
-from base.util import dictionary_to_markdown, extract_phone
+from base.util import dictionary_to_markdown, extract_phone, extract_dictionary
 from proxy.pool import POOL
 
 
@@ -114,13 +114,13 @@ class FlintboxSpider(ButtonSpider):
         if len(meta['banner']) > 0:
             product['logo'] = meta['banner'][0]
         product['asset']['type'] = 3
-        abstract = self._extract_dictionary(meta, 'brief|Brief|BRIEF|Short')
+        abstract = extract_dictionary(meta, 'brief|Brief|BRIEF|Short')
         product['abs'] = '\n'.join(abstract.values())
         if len(product['abs']) < 1:
             product['abs'] = next(iter(meta.values()))
         if len(product['abs']) < 1:
             product['abs'] = product['name']
-        introduction = self._extract_dictionary(meta, 'abstract|Abstract')
+        introduction = extract_dictionary(meta, 'abstract|Abstract')
         product['intro'] = '\n'.join(introduction.values())
         for k in abstract:
             del meta[k]

@@ -5,20 +5,21 @@ import os
 import re
 from copy import deepcopy
 
+from dateutil.parser import parse
 from scrapy import Request
 from scrapy.http import Response
 
 from base.buttonspider import ButtonSpider
 from base.template import create_product, create_user
-from base.util import dictionary_to_markdown, extract_phone, remove_head_tail_white_space, \
-    remove_empty_string_from_array
+from base.util import dictionary_to_markdown, extract_phone, extract_dictionary
 from proxy.pool import POOL
-from dateutil.parser import parse
+
 
 class EmorySpider(ButtonSpider):
     name = 'Emory University'
     allowed_domains = ['olv.duke.edu']
-    start_urls = ['http://emoryott.technologypublisher.com/searchresults.aspx?q=&type=&page=0&sort=datecreated&order=desc']
+    start_urls = [
+        'http://emoryott.technologypublisher.com/searchresults.aspx?q=&type=&page=0&sort=datecreated&order=desc']
     address = {
         'line1': '201 Dowman Drive',
         'line2': '',
@@ -43,6 +44,7 @@ class EmorySpider(ButtonSpider):
                 meta={'proxy': POOL.get()} if self.with_proxy else {},
                 callback=self.parse_list,
                 errback=self.handle_failure)
+
     def parse_name_from_url(self, url):
         elements = url.split("title=")
         if len(elements) > 1:
@@ -63,7 +65,8 @@ class EmorySpider(ButtonSpider):
         if self.page * self.item_per_page < self.statictics(response):
             self.log('process page {}'.format(self.page), level=logging.INFO)
             yield response.follow(
-                url='http://emoryott.technologypublisher.com/searchresults.aspx?q=&type=&page={}&sort=datecreated&order=desc'.format(self.page),
+                url='http://emoryott.technologypublisher.com/searchresults.aspx?q=&type=&page={}&sort=datecreated&order=desc'.format(
+                    self.page),
                 callback=self.parse_list,
                 dont_filter=True,
                 meta={'proxy': POOL.get()} if self.with_proxy else {},
@@ -103,15 +106,15 @@ class EmorySpider(ButtonSpider):
         product['contact']['website'] = response.url
         product['name'] = response.xpath("string(//table/tr/td/h1)").get()
         meta = self.get_meta(response)
-        abstract = self._extract_dictionary(meta, 'Application|Abstract')
+        abstract = extract_dictionary(meta, 'Application|Abstract')
         product['abs'] = '\n'.join(abstract.values())
         if len(product['abs']) < 1:
             product['abs'] = next(iter(meta.values()))
         if len(product['abs']) < 1:
             product['abs'] = product['name']
-        market = self._extract_dictionary(meta, 'Market')
+        market = extract_dictionary(meta, 'Market')
         product['asset']['market'] = '\n'.join(market.values())
-        tech = self._extract_dictionary(meta, 'Technical')
+        tech = extract_dictionary(meta, 'Technical')
         product['asset']['tech'] = '\n'.join(tech.values())
         for k in abstract:
             del meta[k]
@@ -130,7 +133,8 @@ class EmorySpider(ButtonSpider):
         product['tag'] = self.add_tags(response)
         product['contact'] = self.get_contact(response)
         try:
-            product['created'] = parse(response.xpath("//div[@id='divWebPublished']/font/text()").get()).strftime("%a, %d %b %Y %H:%M:%S GMT")
+            product['created'] = parse(response.xpath("//div[@id='divWebPublished']/font/text()").get()).strftime(
+                "%a, %d %b %Y %H:%M:%S GMT")
         except Exception as e:
             self.log("fail to obtain creation date {}".format(e), level=logging.ERROR)
 

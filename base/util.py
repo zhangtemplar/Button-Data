@@ -128,3 +128,18 @@ def remove_head_tail_white_space(text: str) -> str:
     """
     text = re.sub('^(\s+)', '', text)
     return re.sub('(\s+)$', '', text)
+
+
+def extract_dictionary(data: dict, regex_pattern: str) -> dict:
+    """
+    Finds the sub dictionary whose keys match regex pattern.
+
+    :param data: the input dict
+    :param regex_pattern: regular pattern to match the key
+    :return: the sub dictionary whose keys match regex pattern
+    """
+    result = {}
+    for k in data:
+        if re.fullmatch(regex_pattern, k) is not None:
+            result[k] = data[k]
+    return result
