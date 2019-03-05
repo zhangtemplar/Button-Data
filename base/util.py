@@ -138,8 +138,9 @@ def extract_dictionary(data: dict, regex_pattern: str) -> dict:
     :param regex_pattern: regular pattern to match the key
     :return: the sub dictionary whose keys match regex pattern
     """
+    pattern = re.compile(regex_pattern)
     result = {}
     for k in data:
-        if re.fullmatch(regex_pattern, k) is not None:
+        if len(pattern.findall(k)) > 0:
             result[k] = data[k]
     return result

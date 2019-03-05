@@ -156,21 +156,6 @@ class DukeSpider(ButtonSpider):
             [remove_head_tail_white_space(t) for t in
              response.xpath("//ul[@class='tech-category-list']//li/a/text()").getall()])
 
-    @staticmethod
-    def _extract_dictionary(data: dict, regex_pattern: str) -> dict:
-        """
-        Finds the sub dictionary whose keys match regex pattern.
-
-        :param data: the input dict
-        :param regex_pattern: regular pattern to match the key
-        :return: the sub dictionary whose keys match regex pattern
-        """
-        result = {}
-        for k in data:
-            if re.match(regex_pattern, k) is not None:
-                result[k] = data[k]
-        return result
-
     def get_contact(self, response: Response) -> dict:
         """
         Gets the contact information.
