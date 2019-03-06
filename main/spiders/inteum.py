@@ -109,7 +109,6 @@ class InteumSpider(ButtonSpider):
                 pass
         return None
 
-
     def parse(self, response):
         self.log('Parse technology {}'.format(response.url), level=logging.INFO)
         name = self.parse_name_from_url(response.url)
