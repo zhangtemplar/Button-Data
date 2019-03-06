@@ -1,23 +1,19 @@
 # -*- coding: utf-8 -*-
-import json
 import logging
 import os
 import re
-from copy import deepcopy
 
-from dateutil.parser import parse
 from scrapy.http import Response
 from scrapy_selenium import SeleniumRequest
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 
-from base.buttonspider import ButtonSpider
-from base.template import create_product, create_user
-from base.util import dictionary_to_markdown, remove_head_tail_white_space, remove_empty_string_from_array, \
-    extract_phone, extract_dictionary
+from base.template import create_user
+from base.util import remove_empty_string_from_array
+from main.spiders.inteum import InteumSpider
 
 
-class JohnsHopkinsSpider(ButtonSpider):
+class JohnsHopkinsSpider(InteumSpider):
     name = 'JohnsHopkins University'
     allowed_domains = ['jhu.technologypublisher.com']
     start_urls = ['http://jhu.technologypublisher.com/']
@@ -28,11 +24,11 @@ class JohnsHopkinsSpider(ButtonSpider):
         'state': 'MD',
         'zip': '21205',
         'country': 'USA'}
-    item_per_page = 20
-    page = 0
+    title_xpath = "string(//h1)"
+    market_filter = 'Need|need|Market|market|Value|Application|Advantage|novelty'
 
-    def __init__(self):
-        super().__init__(False)
+    def __init__(self, with_proxy: bool = False):
+        super().__init__(with_proxy)
         self.work_directory = os.path.expanduser('~/Downloads/{}'.format(self.name))
         if not os.path.exists(self.work_directory):
             os.mkdir(self.work_directory)
@@ -104,68 +100,6 @@ class JohnsHopkinsSpider(ButtonSpider):
                 pass
         return 0
 
-    def parse(self, response):
-        self.log('Parse technology {}'.format(response.url), level=logging.INFO)
-        name = self.parse_name_from_url(response.url)
-        with open(os.path.join(self.work_directory, name + '.html'), 'wb') as fo:
-            fo.write(response.body)
-        product = create_product()
-        product['ref'] = response.url
-        product['contact']['website'] = response.url
-        product['name'] = response.xpath("string(//h1)").get()
-        for text in response.xpath("//div[@id='divDisclosureDate']/text()").getall():
-            try:
-                product['created'] = parse(text).strftime("%a, %d %b %Y %H:%M:%S GMT")
-                break
-            except:
-                pass
-        meta = self.get_meta(response)
-        market = extract_dictionary(meta, 'Need|need|Market|market|Value')
-        product['asset']['market'] = '\n'.join(market.values())
-        tech = extract_dictionary(meta, 'Technology|Technical')
-        product['asset']['tech'] = '\n'.join(tech.values())
-        content = remove_head_tail_white_space(response.xpath("string(//td[1]/div[@class='c_tp_description'])").get())
-        product['abs'] = content[:content.find('. ') + 1]
-        if len(product['abs']) < 1:
-            product['abs'] = content
-        for k in market:
-            del meta[k]
-        for k in tech:
-            del meta[k]
-        product['intro'] = dictionary_to_markdown(meta)
-        product['asset']['type'] = 3
-        product['addr'] = deepcopy(self.address)
-        product['tag'] = self.add_tags(response)
-        inventors = self.add_inventors(response)
-        for index, user in enumerate(inventors):
-            user['abs'] = 'Inventor of ' + product['name']
-            user['addr'] = product['addr']
-            user['tag'] = product['tag']
-        contact = self.get_contact(response)
-        product['contact'] = contact
-
-        with open(os.path.join(self.work_directory, name + '.json'), 'w') as fo:
-            json.dump({'product': product, 'inventors': inventors}, fo)
-
-    def get_meta(self, response: Response) -> dict:
-        """
-        Get the meta data of the patent from the table.
-
-        :return dict(str, object)
-        """
-        text = remove_head_tail_white_space(response.xpath("string(//td[1]/div[@class='c_tp_description'])").get())
-        titles = response.xpath("//td[1]/div[@class='c_tp_description']/b/text()").getall()[1:]
-        if len(titles) < 1:
-            return {'Abstract': text}
-        start = text.find(titles[0])
-        result = {}
-        for t in range(1, len(titles)):
-            end = text.find(titles[t])
-            result[titles[t - 1]] = text[start + len(titles[t - 1]): end]
-            start = end
-        result[titles[-1]] = text[start + len(titles[-1]):]
-        return result
-
     def add_inventors(self, response: Response) -> list:
         """
         Add inventors to the project.
@@ -192,19 +126,3 @@ class JohnsHopkinsSpider(ButtonSpider):
         :return a list of inventors
         """
         return remove_empty_string_from_array(response.xpath("//div[@id='categoryLinks']/div/a/text()").getall())
-
-    def get_contact(self, response: Response) -> dict:
-        """
-        Gets the contact information.
-
-        :param response: the response object
-        :return: the contact information
-        """,
-        contact = {"website": "", "meet": "", "email": "", "phone": ""}
-        email = response.xpath("//div[@class='c_tp_contact']/a/text()").get()
-        if email is not None:
-            contact['email'] = email
-        phone = extract_phone(response.xpath("string(//div[@class='c_tp_contact'])").get())
-        if len(phone) > 0:
-            contact['phone'] = phone[0]
-        return contact
