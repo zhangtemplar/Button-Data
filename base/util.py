@@ -2,6 +2,9 @@ import re
 import logging
 import requests
 import traceback
+import hmac
+from hashlib import sha1
+from urllib.request import quote
 
 from base.credential import AMAP_KEY
 
@@ -144,3 +147,24 @@ def extract_dictionary(data: dict, regex_pattern: str) -> dict:
         if len(pattern.findall(k)) > 0:
             result[k] = data[k]
     return result
+
+
+def compute_signature(token: str, url: str, data: str=None) -> str:
+    """
+    Computes the signature for eve request.
+
+    :param token: the token for the user to fire the request, which is usually obtained from redis
+    :param url: the url of the request
+    :param data: the request body in json format
+    :return: the computed signature
+    """
+    token = token.encode('utf-8')
+    url = quote(url, safe='?/=%:$').encode('utf-8')
+    if isinstance(data, str):
+        data = data.encode('utf-8')
+    middle = hmac.new(token, url, sha1).hexdigest()
+    print(middle)
+    if isinstance(middle, str):
+        middle = middle.encode('utf-8')
+    truth = hmac.new(middle, data, sha1).hexdigest()
+    return truth
