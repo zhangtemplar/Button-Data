@@ -77,9 +77,8 @@ if __name__ == '__main__':
     # process_uc_sequentially()
     # process_nouvant_parallel()
     from main.spiders.flintbox_all import FlintboxAllSpider
-    from main.spiders.jhu import JohnsHopkinsSpider
     process = CrawlerProcess(settings=get_project_settings())
-    process.crawl(JohnsHopkinsSpider)
+    process.crawl(FlintboxAllSpider)
     process.start()
     PROXY_THREAD.close()
 

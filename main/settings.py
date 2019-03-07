@@ -12,7 +12,7 @@ import os
 
 SELENIUM_DRIVER_NAME = 'chrome'
 SELENIUM_DRIVER_EXECUTABLE_PATH = os.path.expanduser('~/chromedriver')
-SELENIUM_DRIVER_ARGUMENTS = []
+SELENIUM_DRIVER_ARGUMENTS = ['--headless']
 
 BOT_NAME = 'main'
 
@@ -60,7 +60,7 @@ DEFAULT_REQUEST_HEADERS = {
 # Enable or disable downloader middlewares
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
-    'scrapy_selenium.SeleniumMiddleware': 800,
+    # 'scrapy_selenium.SeleniumMiddleware': 800,
     'scrapy.downloadermiddlewares.robotstxt.RobotsTxtMiddleware': None,
     'scrapy.downloadermiddlewares.httpauth.HttpAuthMiddleware': None
 }
