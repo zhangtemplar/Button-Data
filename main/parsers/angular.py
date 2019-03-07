@@ -30,7 +30,7 @@ def find_list(log, work_directory: str, base_url: str, total_page: int) -> list:
 
 
 def parse_page(log, work_directory: str, with_proxy: bool, slug: str):
-    log.info('process {}'.format(slug))
+    print('process {}'.format(slug))
     while True:
         try:
             if with_proxy:
@@ -40,11 +40,11 @@ def parse_page(log, work_directory: str, with_proxy: bool, slug: str):
                 response = get(slug)
             if 200 <= response.status_code < 300:
                 data = response.json()
-                with open(os.path.join(work_directory, '{}.json'.format(slug)), 'w') as fo:
+                with open(os.path.join(work_directory, '{}.json'.format(slug.split('/')[-1])), 'w') as fo:
                     json.dump(data, fo)
                 break
         except Exception as e:
-            log.error(e)
+            print(e)
 
 
 def get_data(name: str, list_url: str, page_url: str, total_page: int, with_proxy: bool=False):
@@ -66,6 +66,6 @@ def get_data(name: str, list_url: str, page_url: str, total_page: int, with_prox
     if with_proxy:
         PROXY_THREAD.start()
     with Pool(16) as pool:
-        pool.map(lambda slug: parse_page(log, work_directory, with_proxy, slug), slugs)
+        pool.starmap(parse_page, [(None, work_directory, with_proxy, slug) for slug in slugs])
     if with_proxy:
         PROXY_THREAD.close()

@@ -1,23 +1,17 @@
 # -*- coding: utf-8 -*-
-import json
 import logging
-import os
-import re
-from copy import deepcopy
 
 from dateutil.parser import parse
-from scrapy import Request
 from scrapy.http import Response
 
-from base.buttonspider import ButtonSpider
-from base.template import create_product, create_user
-from base.util import dictionary_to_markdown, extract_phone, extract_dictionary
-from proxy.pool import POOL
+from base.template import create_user
+from base.util import extract_phone
+from main.spiders.inteum import InteumSpider
 
 
-class EmorySpider(ButtonSpider):
+class EmorySpider(InteumSpider):
     name = 'Emory University'
-    allowed_domains = ['olv.duke.edu']
+    allowed_domains = ['emoryott.technologypublisher.com']
     start_urls = [
         'http://emoryott.technologypublisher.com/searchresults.aspx?q=&type=&page=0&sort=datecreated&order=desc']
     address = {
@@ -27,119 +21,19 @@ class EmorySpider(ButtonSpider):
         'state': 'GA',
         'zip': '30322',
         'country': 'USA'}
-    item_per_page = 10
-    page = 0
+    next_page_template = 'http://emoryott.technologypublisher.com/searchresults.aspx?q=&type=&page={}&sort=datecreated&order=desc'
+    title_xpath = "string(//table/tr/td/h1)"
+    abstract_filter = 'Application|Abstract'
+    market_filter = 'Need|need|Market|market|Value|Advantage'
 
-    def __init__(self):
-        super().__init__(False)
-        self.work_directory = os.path.expanduser('~/Downloads/{}'.format(self.name))
-        if not os.path.exists(self.work_directory):
-            os.mkdir(self.work_directory)
-
-    def start_requests(self):
-        for url in self.start_urls:
-            yield Request(
-                url=url,
-                dont_filter=True,
-                meta={'proxy': POOL.get()} if self.with_proxy else {},
-                callback=self.parse_list,
-                errback=self.handle_failure)
-
-    def parse_name_from_url(self, url):
-        elements = url.split("title=")
-        if len(elements) > 1:
-            return elements[-1]
-        return url.split("/")[-1]
-
-    def parse_list(self, response: Response):
-        # wait for page to load
-        # wait for the redirect to finish.
-        patent_links = []
-        for link in response.xpath("//table/tr/td/a"):
-            text = link.xpath("text()").get()
-            url = link.xpath("@href").get()
-            self.log("find technology {}/{}".format(text, url), level=logging.INFO)
-            patent_links.append(url)
-        # for next page
-        self.page += 1
-        if self.page * self.item_per_page < self.statictics(response):
-            self.log('process page {}'.format(self.page), level=logging.INFO)
-            yield response.follow(
-                url='http://emoryott.technologypublisher.com/searchresults.aspx?q=&type=&page={}&sort=datecreated&order=desc'.format(
-                    self.page),
-                callback=self.parse_list,
-                dont_filter=True,
-                meta={'proxy': POOL.get()} if self.with_proxy else {},
-                errback=self.handle_failure)
-        for p in patent_links:
-            name = self.parse_name_from_url(p)
-            if os.path.exists(os.path.join(self.work_directory, name + '.json')):
-                self.log('{} already parsed and will skip'.format(p), level=logging.INFO)
-                continue
-            yield response.follow(
-                url=p,
-                callback=self.parse,
-                dont_filter=True,
-                meta={'proxy': POOL.get()} if self.with_proxy else {},
-                errback=self.handle_failure)
-
-    def statictics(self, response: Response) -> int:
-        """
-        Get the meta data of the patent from the table.
-
-        :return dict(str, object)
-        """
-        for text in response.xpath('//td[@valign="top"]/b/text()').getall():
-            try:
-                return int(text)
-            except:
-                pass
-        return 0
-
-    def parse(self, response):
-        self.log('Parse technology {}'.format(response.url), level=logging.INFO)
-        name = self.parse_name_from_url(response.url)
-        with open(os.path.join(self.work_directory, name + '.html'), 'wb') as fo:
-            fo.write(response.body)
-        product = create_product()
-        product['ref'] = response.url
-        product['contact']['website'] = response.url
-        product['name'] = response.xpath("string(//table/tr/td/h1)").get()
-        meta = self.get_meta(response)
-        abstract = extract_dictionary(meta, 'Application|Abstract')
-        product['abs'] = '\n'.join(abstract.values())
-        if len(product['abs']) < 1:
-            product['abs'] = next(iter(meta.values()))
-        if len(product['abs']) < 1:
-            product['abs'] = product['name']
-        market = extract_dictionary(meta, 'Market')
-        product['asset']['market'] = '\n'.join(market.values())
-        tech = extract_dictionary(meta, 'Technical')
-        product['asset']['tech'] = '\n'.join(tech.values())
-        for k in abstract:
-            del meta[k]
-        for k in market:
-            del meta[k]
-        for k in tech:
-            del meta[k]
-        product['intro'] = dictionary_to_markdown(meta)
-        product['asset']['type'] = 3
-        product['addr'] = deepcopy(self.address)
-        product['tag'] = self.add_tags(response)
-        inventors = self.add_inventors(response)
-        for index, user in enumerate(inventors):
-            user['abs'] = 'Inventor of ' + product['name']
-            user['addr'] = product['addr']
-            user['tag'] = product['tag']
-        product['contact'] = self.get_contact(response)
+    def get_disclosure_date(self, response: Response):
         try:
-            product['created'] = parse(response.xpath("//div[@id='divWebPublished']/font/text()").get()).strftime(
+            return parse(response.xpath("//div[@id='divWebPublished']/font/text()").get()).strftime(
                 "%a, %d %b %Y %H:%M:%S GMT")
-        except Exception as e:
-            self.log("fail to obtain creation date {}".format(e), level=logging.ERROR)
+        except:
+            return None
 
-        with open(os.path.join(self.work_directory, name + '.json'), 'w') as fo:
-            json.dump({'product': product, 'inventors': inventors}, fo)
+    tech_filter = 'Technology|Technical'
 
     def get_meta(self, response: Response) -> dict:
         """
@@ -166,11 +60,9 @@ class EmorySpider(ButtonSpider):
         :return a list of inventors
         """
         inventors = []
-        for row in response.xpath("//td/table/tr/td/a"):
-            link = row.xpath('@href').get()
-            if not link.startswith('/bio.aspx?id='):
-                continue
+        for row in response.xpath('//*[@id="formTechPub1"]/div/table/tr/td/table[2]/tr/td/a'):
             name = row.xpath("text()").get()
+            link = row.xpath("@href").get()
             if len(name) < 1:
                 continue
             user = create_user()
