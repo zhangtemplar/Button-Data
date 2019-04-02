@@ -10,7 +10,7 @@ import logging
 import os
 from multiprocessing import Pool
 from dateutil import parser
-
+from collections import OrderedDict
 import xmltodict
 
 from base.template import create_user, create_product
@@ -46,6 +46,28 @@ class ClinicalTrial(object):
             # os.remove(file_name)
         with open(self.sourceDirectory + '.json', 'w') as fo:
             json.dump(result, fo, ensure_ascii=False)
+
+    def histogram_indication(self, hist: dict=None) -> dict:
+        """
+        Computes the histogram of indication
+
+        :param hist: base histogram is available, default {}
+        :return: the computed histogram
+        """
+        file_list = [os.path.join(self.sourceDirectory, file_name) for file_name in os.listdir(self.sourceDirectory) if
+                     file_name.startswith("NCT")]
+        result = {} if hist is None else hist
+        for file_name in file_list:
+            log.info('process ' + file_name)
+            trial = xmltodict.parse(open(file_name, "rb"))['clinical_study']
+            if 'condition' not in trial:
+                continue
+            if isinstance(trial['condition'], list):
+                for c in trial['condition']:
+                    result[c] = result.get(c, 0) + 1
+            else:
+                result[trial['condition']] = result.get(trial['condition'], 0) + 1
+        return result
 
     @staticmethod
     def _add_sponsor(data: dict) -> dict:
@@ -312,13 +334,27 @@ def task(directory):
     log.critical('job completed' + directory)
 
 
+def histogram_task(directory):
+    log.critical('process ' + directory)
+    with ClinicalTrial(directory) as t:
+        return t.histogram_indication()
+    # os.rmdir(directory)
+    log.critical('job completed' + directory)
+
+
 if __name__ == '__main__':
     # list the category.
     sourceDirectory = "/Users/zhangtemplar/Downloads/clinictrial"
-    dirList = [os.path.join(sourceDirectory, folder) for folder in os.listdir(sourceDirectory) if
-               folder.startswith("NCT")]
+    dir_list = [os.path.join(sourceDirectory, folder) for folder in os.listdir(sourceDirectory) if
+                folder.startswith("NCT")]
     pool = Pool(8)
-    for index in dirList:
-        pool.apply_async(task, args=(index,))
+    # for index in dir_list:
+    #     pool.apply_async(task, args=(index,))
+    histogram = {}
+    for index in dir_list:
+        pool.apply_async(histogram_task, args=(index,), callback=lambda h: histogram.update(h))
     pool.close()
     pool.join()
+    json.dump(histogram, open(os.path.join(sourceDirectory, 'histogram.json'), 'w'), indent=2)
+    result = OrderedDict(sorted(histogram.items(), key=lambda i: -(i[1])))
+    json.dump(result, open(os.path.join(sourceDirectory, 'histogram_sorted.json'), 'w'), indent=2)
