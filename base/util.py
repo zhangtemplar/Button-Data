@@ -5,7 +5,8 @@ import traceback
 import hmac
 from hashlib import sha1
 from urllib.request import quote
-
+from zhon.hanzi import punctuation
+import string
 from base.credential import AMAP_KEY
 
 
@@ -129,8 +130,8 @@ def remove_head_tail_white_space(text: str) -> str:
     :param text: input text
     :return: a string
     """
-    text = re.sub('^(\s+)', '', text)
-    return re.sub('(\s+)$', '', text)
+    text = re.sub('^([\s%s]+)' % (punctuation + string.punctuation), '', text)
+    return re.sub('([\s%s])$' % (punctuation + string.punctuation), '', text)
 
 
 def extract_dictionary(data: dict, regex_pattern: str) -> dict:
