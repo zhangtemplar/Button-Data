@@ -34,6 +34,7 @@ def create_user():
         "name": "",
         "nick": "",
         "onepage": {
+            'banner': '',
             'bg': '',
             'prod': '',
             'high': '',
@@ -58,12 +59,14 @@ def create_company():
         "logo": "https://buttondata.oss-cn-shanghai.aliyuncs.com/user.png",
         "ref": "",
         "name": "",
+        "abs": "",
         "srcId": "000000000000000000000000",
         "addr": {"country": "", "line2": "", "city": "", "zip": "", "state": "", "line1": ""},
         "contact": {"website": "", "meet": "", "email": "", "phone": ""},
         "intro": "",
         "nick": "",
         "onepage": {
+            'banner': '',
             'bg': '',
             'prod': '',
             'high': '',
@@ -93,6 +96,7 @@ def create_product():
         "logo": "https://buttondata.oss-cn-shanghai.aliyuncs.com/user.png",
         "ref": "",
         "name": "",
+        "abs": "",
         "srcId": "000000000000000000000000",
         "addr": {"country": "", "line2": "", "city": "", "zip": "", "state": "", "line1": ""},
         "contact": {"website": "", "meet": "", "email": "", "phone": ""},
@@ -100,6 +104,7 @@ def create_product():
         "tag": [],
         "nick": "",
         "onepage": {
+            'banner': '',
             'bg': '',
             'prod': '',
             'high': '',
@@ -116,6 +121,7 @@ def create_product():
             'lic': [],
             'stat': 0,
             'type': 0,
+            'ind': []
         }
     }
 
