@@ -14,13 +14,44 @@ import xmltodict
 from pymongo import MongoClient
 
 from base.template import create_product
+from base.union_find import UnionFind
 
 
 class Pubmed(object):
     def __init__(self, mongo_uri: str):
         self.client = MongoClient(mongo_uri)
 
-    def process(self, data_file: str):
+    @staticmethod
+    def process_author(data_file):
+        authors = UnionFind()
+        affiliation_set = {}
+
+        for file in data_file:
+            print('Process {}'.format(file))
+            data = json.load(open(file, 'r'))
+            for d in data:
+                users = d['author']
+                for u in users:
+                    if u is None:
+                        continue
+                    # merge the users
+                    name = u['name']
+                    affiliation = [
+                        a['#text'] if (isinstance(a, dict) and '#text' in a) else a for a in u['affiliation']]
+                    for a in affiliation:
+                        if a not in affiliation_set:
+                            affiliation_set[a] = ''
+                        if a is not affiliation[0]:
+                            authors.union((name, a), (name, affiliation[0]))
+
+        # find unique author
+        authors = authors.all_elements()
+        result = []
+        for a in authors:
+            result.append({'name': a[0], 'affiliation': [d[1] for d in authors[a]]})
+        json.dump(result, open('pubmed_author.json', 'w'))
+
+    def preprocess(self, data_file: str):
         result = []
 
         def process_one_article(_, article):
@@ -215,23 +246,31 @@ class Pubmed(object):
             elif 'LastName' in a:
                 user['name'] = a['LastName']
             if 'AffiliationInfo' in a:
+                def parse_affiliation(aff):
+                    if isinstance(aff, str):
+                        return aff
+                    if '#text' in aff:
+                        return aff['#text']
+                    return None
                 if isinstance(a['AffiliationInfo'], dict):
-                    user['affiliation'].append(a['AffiliationInfo']['Affiliation'])
-                else:
-                    user['affiliation'].extend([d['Affiliation'] for d in a['AffiliationInfo']])
-            # TODO: parse address and company from AffiliationInfo
+                    user['affiliation'].append(parse_affiliation(a['AffiliationInfo']['Affiliation']))
+                elif isinstance(a['AffiliationInfo'], tuple or list):
+                    for d in a['AffiliationInfo']:
+                        user['affiliation'].append(parse_affiliation(d['Affiliation']))
+                elif isinstance(a['AffiliationInfo'], str):
+                    user['affiliation'].append(parse_affiliation(a['AffiliationInfo']))
+                user['affiliation'] = [a for a in user['affiliation'] if a is not None]
             return user
 
+        result = []
         if isinstance(data, dict):
-            return [parse_user(data)]
+            result.append(parse_user(data))
         elif isinstance(data, list or tuple):
-            return [parse_user(d) for d in data]
-        else:
-            return []
-
+            result.extend([parse_user(d) for d in data])
+        return [r for r in result if r is not None]
 
 if __name__ == '__main__':
-    result = Pubmed('mongodb://zhangtemplar:Button2015@eve.zhqiang.org:27017/data?authSource=admin').process(
+    result = Pubmed('mongodb://zhangtemplar:Button2015@eve.zhqiang.org:27017/data?authSource=admin').preprocess(
         os.path.expanduser('~/Downloads/pubmed19n1053.xml'))
     with open(os.path.expanduser('~/Downloads/pubmed19n1053.json'), 'w') as fo:
         json.dump(result, fo)
