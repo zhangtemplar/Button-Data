@@ -92,6 +92,28 @@ def remove_empty_string_from_array(array):
     return list(set([a for a in array if len(a) > 0]))
 
 
+def parse_us_address(text: str) -> dict or None:
+    url = "https://geocoder.api.here.com/6.2/geocode.json"
+    query_string = {
+        "app_id": "pVQOYHdr1klB6U8SI4EE",
+        "app_code": "Z9NI87sS_2BhGIpLIm3cXw",
+        "searchtext": text}
+    try:
+        response = requests.request("GET", url, params=query_string).json()
+        address = response['Response']['View'][0]['Result'][0]['Location']['Address']
+        return {
+            'city': address['City'],
+            'country': address['Country'],
+            'state': address['State'],
+            'zip': address['PostalCode'],
+            'line1': ''.join(response['geocodes'][0]['street']) + ' ' + ''.join(response['geocodes'][0]['number']),
+            'line2': response['geocodes'][0]['district'] + ' ' + ''.join(response['geocodes'][0]['township']),
+        }
+    except Exception as e:
+        traceback.print_tb(e.__traceback__)
+        return None
+
+
 def parse_chinese_address(text: str) -> dict or None:
     """
     Use 高德地图地理/逆地理编码 to parse chinese address
