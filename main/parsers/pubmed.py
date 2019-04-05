@@ -64,7 +64,7 @@ class Pubmed(object):
                     r['srcId'] = article_ids[article['ref']]
                     r['dstId'] = article_ids[u]
                     r['name'] = 'Reference'
-                    r['type'] = 0
+                    r['type'] = 14
                     relationship.append(r)
                 response = add_record('relationship', relationship)
                 if response['_status'] != 'OK':
