@@ -6,6 +6,8 @@ __email__ = "zhangtemplar@gmail.com"
 Add documentation of this module here.
 """
 import requests
+from base.util import compute_signature
+import json
 
 
 def create_relationship():
@@ -126,10 +128,18 @@ def create_product():
     }
 
 
-
 def add_record(resource, data):
+    token = '01234567890abcdef01234567'
+    user_id = '01234567890abcdef01234567'
+    signature = compute_signature(token, '/{}?'.format(resource), json.dumps(data))
     try:
-        return requests.post('http://172.17.0.7/' + resource, json=data).json()
+        response = requests.post(
+            'http://172.17.0.7/' + resource,
+            headers={
+                'Origin': 'localhost:8000',
+                'Authorization': '{}:{}'.format(user_id, signature)},
+            json=data)
+        return response.json()
     except Exception as e:
-        print(e)
+        print(response.text)
         return {'_status': 'Err'}

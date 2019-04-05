@@ -5,25 +5,114 @@ __email__ = "zhangtemplar@gmail.com"
 """
 This module parses the medline reference and citation data.
 """
+import json
 import os
 from datetime import datetime
 from typing import *
-import json
 
 import xmltodict
 from pymongo import MongoClient
 
-from base.template import create_product
+from base.template import create_product, create_user, create_relationship, add_record
 from base.union_find import UnionFind
+from base.util import create_logger
 
 
 class Pubmed(object):
     def __init__(self, mongo_uri: str):
         self.client = MongoClient(mongo_uri)
+        self.authors = UnionFind()
+        self.log = create_logger('pubmed.log')
 
-    @staticmethod
-    def process_author(data_file):
-        authors = UnionFind()
+    def process(self, data_directory: str):
+        """
+        Main entrance, parse the pubmed xml files, upload the data to database, build the relationship in it.
+
+        :param data_directory: directory to the xml files
+        :return: None
+        """
+        data_file = []
+        for file in os.listdir(data_directory):
+            if not file.endswith('xml') or os.path.exists(file[:-3] + 'json'):
+                continue
+            result = self.preprocess(file)
+            with open(file[:-3] + 'json', 'w') as fo:
+                json.dump(result, fo)
+            data_file.append(file[:-3] + 'json')
+        author_ids = self.process_author(data_file)
+        article_ids = self.process_article(data_file, author_ids)
+        self.process_reference(data_file, article_ids)
+
+    def process_reference(self, data_file: List[str], article_ids: dict):
+        """
+        Uploads the reference information for the article.
+
+        :param data_file:
+        :param article_ids: a dict mapping of pubmed id of the article to the id in the database
+        :return: list of names of files generated from preprocess
+        """
+        for file in data_file:
+            print('Process {}'.format(file))
+            data = json.load(open(file, 'r'))
+            for d in data:
+                reference = [r for r in d['reference'] if isinstance(r, str)]
+                article = d['article']
+                relationship = []
+                for u in reference:
+                    # find _id of author
+                    r = create_relationship()
+                    r['srcId'] = article_ids[article['ref']]
+                    r['dstId'] = article_ids[u]
+                    r['name'] = 'Reference'
+                    r['type'] = 0
+                    relationship.append(r)
+                response = add_record('relationship', relationship)
+                if response['_status'] != 'OK':
+                    self.log.error('fail to create author article relationship for {}'.format(article['name']))
+
+    def process_article(self, data_file: List[str], author_ids: dict) -> dict:
+        """
+        Uploads the article to server and returns the mapping of pubmed id of the article to the id in the database
+
+        :param data_file: list of names of files generated from preprocess
+        :param author_ids: dictionary of (author name, author first affiliation) to author's id in database
+        :return: a dict mapping of pubmed id of the article to the id in the database
+        """
+        article_ids = {}
+        for file in data_file:
+            print('Process {}'.format(file))
+            data = json.load(open(file, 'r'))
+            for d in data:
+                users = d['author']
+                article = d['article']
+                response = add_record('entity', article)
+                if response['_status'] != 'OK':
+                    self.log.error('fail to create record for {}'.format(article['name']))
+                    continue
+                article_ids[article['ref']] = response['_items']['_id']
+                # create author-article relationship
+                relationship = []
+                for u in users:
+                    # find _id of author
+                    user_id = author_ids[self.authors.find((u['name'], u['affiliation'][0]))]
+                    r = create_relationship()
+                    r['srcId'] = str(user_id)
+                    r['dstId'] = response['_items']['_id']
+                    r['name'] = 'Author'
+                    r['type'] = 5
+                    relationship.append(r)
+                response = add_record('relationship', relationship)
+                if response['_status'] != 'OK':
+                    self.log.error('fail to create author article relationship for {}'.format(article['name']))
+        return article_ids
+
+    def process_author(self, data_file: List[str]) -> dict:
+        """
+        Finds the unique authors and upload to the database.
+
+        :param data_file: list of files containing the data from preprocess step
+        :return: a dictionary using the ref of author as key and its _id in database as value
+        """
         affiliation_set = {}
 
         for file in data_file:
@@ -42,14 +131,45 @@ class Pubmed(object):
                         if a not in affiliation_set:
                             affiliation_set[a] = ''
                         if a is not affiliation[0]:
-                            authors.union((name, a), (name, affiliation[0]))
+                            self.authors.union((name, a), (name, affiliation[0]))
 
         # find unique author
-        authors = authors.all_elements()
-        result = []
-        for a in authors:
-            result.append({'name': a[0], 'affiliation': [d[1] for d in authors[a]]})
-        json.dump(result, open('pubmed_author.json', 'w'))
+        author_list = []
+        author_dict = self.authors.all_elements()
+        for a in author_dict:
+            author_list.append({'name': a[0], 'affiliation': [d[1] for d in author_dict[a]]})
+        json.dump(author_list, open('pubmed_author.json', 'w'))
+        del author_list
+
+        # upload the user to the server
+        users = []
+        user_ids = {}
+        for a in author_dict:
+            user = create_user()
+            user['name'] = a[0]
+            user['abs'] = a[1]
+            user['ref'] = a[1]
+            user['onepage']['bg'] = json.dumps([u[1] for u in author_dict[a]])
+            users.append(user)
+            if len(users) >= 1000:
+                response = add_record('entity', users)
+                if response['_status'] != 'OK':
+                    self.log.error('fail to create user'.format(a['name']))
+                else:
+                    for u, r in zip(users, response['_items']):
+                        user_ids[(u['name'], u['abs'])] = r['_id']
+                    users = []
+        if len(users) > 0:
+            response = add_record('entity', users)
+            if response['_status'] != 'OK':
+                self.log.error('fail to create user'.format(a['name']))
+            else:
+                for u, r in zip(users, response['_items']):
+                    user_ids[(u['name'], u['abs'])] = r['_id']
+        del users
+        json.dump({k: str(user_ids[k]) for k in user_ids}, open('pubmed_author_ids.json', 'w'))
+
+        return user_ids
 
     def preprocess(self, data_file: str):
         result = []
@@ -137,7 +257,7 @@ class Pubmed(object):
         return result
 
     @staticmethod
-    def _text_from_list_or_dict(data: dict or list, field: str=None) -> List[str]:
+    def _text_from_list_or_dict(data: dict or list, field: str = None) -> List[str]:
         """
         Extracts text list from the input which could be either a dict or a dict nested in a list.
 
@@ -252,6 +372,7 @@ class Pubmed(object):
                     if '#text' in aff:
                         return aff['#text']
                     return None
+
                 if isinstance(a['AffiliationInfo'], dict):
                     user['affiliation'].append(parse_affiliation(a['AffiliationInfo']['Affiliation']))
                 elif isinstance(a['AffiliationInfo'], tuple or list):
@@ -269,8 +390,7 @@ class Pubmed(object):
             result.extend([parse_user(d) for d in data])
         return [r for r in result if r is not None]
 
+
 if __name__ == '__main__':
-    result = Pubmed('mongodb://zhangtemplar:Button2015@eve.zhqiang.org:27017/data?authSource=admin').preprocess(
-        os.path.expanduser('~/Downloads/pubmed19n1053.xml'))
-    with open(os.path.expanduser('~/Downloads/pubmed19n1053.json'), 'w') as fo:
-        json.dump(result, fo)
+    Pubmed('mongodb://zhangtemplar:Button2015@eve.zhqiang.org:27017/data?authSource=admin').process(
+        os.path.expanduser('~/Downloads/'))
