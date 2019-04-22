@@ -5,24 +5,26 @@ __email__ = "zhangtemplar@gmail.com"
 """
 This module parses the medline reference and citation data.
 """
+import pickle
 import json
 import os
 from datetime import datetime
 from typing import *
+from collections import defaultdict
 
 import xmltodict
 from pymongo import MongoClient
 
 from base.template import create_product, create_user, create_relationship, add_record
 from base.union_find import UnionFind
-from base.util import create_logger
+from base.util import create_logger, normalize_email, normalize_phone
 
 
 class Pubmed(object):
     def __init__(self, mongo_uri: str):
         self.client = MongoClient(mongo_uri)
         self.authors = UnionFind()
-        self.log = create_logger('pubmed.log')
+        self.logger = create_logger('pubmed.log')
 
     def process(self, data_directory: str):
         """
@@ -33,17 +35,65 @@ class Pubmed(object):
         """
         data_file = []
         for file in os.listdir(data_directory):
-            if not file.endswith('xml') or os.path.exists(file[:-3] + 'json'):
+            if not file.endswith('xml'):
+                continue
+            file = os.path.join(data_directory, file)
+            data_file.append(file[:-3] + 'cp')
+            if os.path.exists(file[:-3] + 'cp'):
                 continue
             result = self.preprocess(file)
-            with open(file[:-3] + 'json', 'w') as fo:
-                json.dump(result, fo)
-            data_file.append(file[:-3] + 'json')
-        author_ids = self.process_author(data_file)
-        article_ids = self.process_article(data_file, author_ids)
-        self.process_reference(data_file, article_ids)
+            with open(file[:-3] + 'cp', 'wb') as fo:
+                pickle.dump(result, fo)
+        self.process_author(data_file)
+        citation = self.compute_citation(data_file)
+        self.compute_author_impact(data_file, citation)
 
-    def process_reference(self, data_file: List[str], article_ids: dict):
+        article_ids = self.upload_article(data_file)
+        self.upload_reference(data_file, article_ids)
+
+        author_ids = self.upload_author()
+        self.upload_authorship(data_file, author_ids, article_ids)
+
+    def compute_author_impact(self, data_file: List[str], citations: Dict) -> Dict:
+        author_impact = defaultdict(lambda: {'citation': 0, 'keyword': set()})
+        for file in data_file:
+            self.logger.info('Process {}'.format(file))
+            data = pickle.load(open(file, 'rb'))
+            for d in data:
+                users = d['author']
+                article = d['article']
+                for u in users:
+                    affiliation = u['affiliation']
+                    if len(affiliation) < 1:
+                        key = (u['name'], u['name'])
+                    else:
+                        key = (u['name'], affiliation[0])
+                    root = self.authors.find(key)
+                    author_impact[root]['citation'] += citations.get(article['ref'], 0)
+                    author_impact[root]['keyword'].update(article['tag'])
+        pickle.dump(dict(author_impact), open('pubmed_author_citation.cp', 'wb'))
+        return author_impact
+
+    def compute_citation(self, data_file: List[str]) -> Dict:
+        """
+        Compute the citation information for the article.
+
+        :param data_file:
+        :param article_ids: a dict mapping of pubmed id of the article to the id in the database
+        :return: list of names of files generated from preprocess
+        """
+        citations = defaultdict(lambda: 0)
+        for file in data_file:
+            self.logger.info('Process {}'.format(file))
+            data = pickle.load(open(file, 'rb'))
+            for d in data:
+                reference = d['reference']
+                for u in reference:
+                    citations[u] += 1
+        pickle.dump(dict(citations), open('pubmed_article_citation.cp', 'wb'))
+        return citations
+
+    def upload_reference(self, data_file: List[str], article_ids: dict):
         """
         Uploads the reference information for the article.
 
@@ -52,14 +102,19 @@ class Pubmed(object):
         :return: list of names of files generated from preprocess
         """
         for file in data_file:
-            print('Process {}'.format(file))
-            data = json.load(open(file, 'r'))
+            self.logger.info('Process {}'.format(file))
+            data = pickle.load(open(file, 'rb'))
             for d in data:
                 reference = [r for r in d['reference'] if isinstance(r, str)]
                 article = d['article']
+                if article['ref'] not in article_ids:
+                    self.logger.warning('article {} is not found in server'.format(article['ref']))
+                    continue
                 relationship = []
                 for u in reference:
-                    # find _id of author
+                    if article['ref'] not in article_ids:
+                        self.logger.warning('reference {} is not found in server'.format(article_ids[u]))
+                        continue
                     r = create_relationship()
                     r['srcId'] = article_ids[article['ref']]
                     r['dstId'] = article_ids[u]
@@ -68,9 +123,9 @@ class Pubmed(object):
                     relationship.append(r)
                 response = add_record('relationship', relationship)
                 if response['_status'] != 'OK':
-                    self.log.error('fail to create author article relationship for {}'.format(article['name']))
+                    self.logger.error('fail to create author article relationship for {}'.format(article['name']))
 
-    def process_article(self, data_file: List[str], author_ids: dict) -> dict:
+    def upload_article(self, data_file: List[str]) -> dict:
         """
         Uploads the article to server and returns the mapping of pubmed id of the article to the id in the database
 
@@ -80,66 +135,104 @@ class Pubmed(object):
         """
         article_ids = {}
         for file in data_file:
-            print('Process {}'.format(file))
-            data = json.load(open(file, 'r'))
+            self.logger.info('Process {}'.format(file))
+            data = pickle.load(open(file, 'rb'))
+            for d in data:
+                article = d['article']
+                if len(article['abs']) < 1:
+                    article['abs'] = article['name']
+                article['addr']['city'] = 'unknown'
+                article['addr']['country'] = 'unknown'
+                response = add_record('entity', article)
+                if response['_status'] != 'OK':
+                    self.logger.error('fail to create article for {} due to {}'.format(article['name'], response))
+                    continue
+                article_ids[article['ref']] = response['_items']['_id']
+        pickle.dump(article_ids, open('pubmed_article_ids.cp', 'wb'))
+        return article_ids
+
+    def upload_authorship(self, data_file: List[str], author_ids: dict, article_ids: dict):
+        """
+        Uploads the authorship to the server.
+
+        :param data_file: names of json files
+        :param author_ids: mapping of author to its _id on server
+        :param article_ids: mapping of article to its _id on server
+        :return: None
+        """
+        # create author-article relationship
+        relationship = []
+        for file in data_file:
+            self.logger.info('Process {}'.format(file))
+            data = pickle.load(open(file, 'rb'))
             for d in data:
                 users = d['author']
                 article = d['article']
-                response = add_record('entity', article)
-                if response['_status'] != 'OK':
-                    self.log.error('fail to create record for {}'.format(article['name']))
+                if article['ref'] not in article_ids:
+                    self.logger.warning('article {} is not found in server'.format(article['ref']))
                     continue
-                article_ids[article['ref']] = response['_items']['_id']
-                # create author-article relationship
-                relationship = []
                 for u in users:
                     # find _id of author
-                    user_id = author_ids[self.authors.find((u['name'], u['affiliation'][0]))]
+                    affiliation = u['affiliation']
+                    if len(affiliation) < 1:
+                        key = (u['name'], article['name'])
+                    else:
+                        key = (u['name'], affiliation[0])
+                    key = self.authors.find(key)
+                    if key not in author_ids:
+                        self.logger.warning('user {} is not found in server'.format(u['name']))
+                        continue
+                    user_id = author_ids[key]
                     r = create_relationship()
-                    r['srcId'] = str(user_id)
-                    r['dstId'] = response['_items']['_id']
+                    r['srcId'] = user_id
+                    r['dstId'] = article_ids[article['ref']]
                     r['name'] = 'Author'
                     r['type'] = 5
                     relationship.append(r)
-                response = add_record('relationship', relationship)
-                if response['_status'] != 'OK':
-                    self.log.error('fail to create author article relationship for {}'.format(article['name']))
-        return article_ids
+                if len(relationship) > 1000:
+                    response = add_record('relationship', relationship)
+                    if response['_status'] != 'OK':
+                        self.logger.error('fail to create authorship due to {}'.format(response))
+                    relationship = []
+        if len(relationship) > 0:
+            response = add_record('relationship', relationship)
+            if response['_status'] != 'OK':
+                self.logger.error('fail to create authorship due to {}'.format(response))
 
-    def process_author(self, data_file: List[str]) -> dict:
+    def process_author(self, data_file: List[str]) -> None:
         """
-        Finds the unique authors and upload to the database.
+        Finds the unique authors.
 
         :param data_file: list of files containing the data from preprocess step
-        :return: a dictionary using the ref of author as key and its _id in database as value
         """
-        affiliation_set = {}
-
         for file in data_file:
-            print('Process {}'.format(file))
-            data = json.load(open(file, 'r'))
+            self.logger.info('Process {}'.format(file))
+            data = pickle.load(open(file, 'rb'))
             for d in data:
+                article = d['article']
                 users = d['author']
                 for u in users:
                     if u is None:
                         continue
                     # merge the users
                     name = u['name']
-                    affiliation = [
-                        a['#text'] if (isinstance(a, dict) and '#text' in a) else a for a in u['affiliation']]
+                    affiliation = u['affiliation']
+                    if len(affiliation) == 0:
+                        self.authors.find((name, article['name']))
                     for a in affiliation:
-                        if a not in affiliation_set:
-                            affiliation_set[a] = ''
                         if a is not affiliation[0]:
                             self.authors.union((name, a), (name, affiliation[0]))
 
+    def upload_author(self) -> dict:
+        """
+        Upload the unique authors to the database.
+
+        :param data_file: list of files containing the data from preprocess step
+        :return: a dictionary using the ref of author as key and its _id in database as value
+        """
+
         # find unique author
-        author_list = []
         author_dict = self.authors.all_elements()
-        for a in author_dict:
-            author_list.append({'name': a[0], 'affiliation': [d[1] for d in author_dict[a]]})
-        json.dump(author_list, open('pubmed_author.json', 'w'))
-        del author_list
 
         # upload the user to the server
         users = []
@@ -149,12 +242,14 @@ class Pubmed(object):
             user['name'] = a[0]
             user['abs'] = a[1]
             user['ref'] = a[1]
+            user['contact']['email'] = normalize_email(a[1])
+            user['contact']['phone'] = normalize_phone(a[1])
             user['onepage']['bg'] = json.dumps([u[1] for u in author_dict[a]])
             users.append(user)
             if len(users) >= 1000:
                 response = add_record('entity', users)
                 if response['_status'] != 'OK':
-                    self.log.error('fail to create user'.format(a['name']))
+                    self.logger.error('fail to create user'.format(a['name']))
                 else:
                     for u, r in zip(users, response['_items']):
                         user_ids[(u['name'], u['abs'])] = r['_id']
@@ -162,16 +257,22 @@ class Pubmed(object):
         if len(users) > 0:
             response = add_record('entity', users)
             if response['_status'] != 'OK':
-                self.log.error('fail to create user'.format(a['name']))
+                self.logger.error('fail to create user'.format(a['name']))
             else:
                 for u, r in zip(users, response['_items']):
                     user_ids[(u['name'], u['abs'])] = r['_id']
         del users
-        json.dump({k: str(user_ids[k]) for k in user_ids}, open('pubmed_author_ids.json', 'w'))
+        pickle.dump(user_ids, open('pubmed_author_ids.cp', 'wb'))
 
         return user_ids
 
-    def preprocess(self, data_file: str):
+    def preprocess(self, data_file: str) -> List[dict]:
+        """
+        Extracts the article data from xml and save to json.
+
+        :param data_file: xml file name
+        :return: the list article extracts
+        """
         result = []
 
         def process_one_article(_, article):
@@ -202,10 +303,13 @@ class Pubmed(object):
             if 'CoiStatement' in article['MedlineCitation']:
                 if isinstance(article['MedlineCitation']['CoiStatement'], dict):
                     if 'b' in article['MedlineCitation']['CoiStatement']:
-                        p['intro'] += article['MedlineCitation']['CoiStatement']['b']
+                        if isinstance(article['MedlineCitation']['CoiStatement']['b'], list):
+                            p['intro'] += '\n'.join(article['MedlineCitation']['CoiStatement']['b'])
+                        else:
+                            p['intro'] += article['MedlineCitation']['CoiStatement']['b']
                     elif '#text' in article['MedlineCitation']['CoiStatement']:
                         p['intro'] += article['MedlineCitation']['CoiStatement']['#text']
-                else:
+                elif isinstance(article['MedlineCitation']['CoiStatement'], str):
                     p['intro'] += article['MedlineCitation']['CoiStatement']
 
             authors = []
@@ -247,12 +351,13 @@ class Pubmed(object):
             result.append({"article": p, "reference": references, "author": authors})
             return True
 
+        self.logger.info('process {}'.format(data_file))
         try:
             xmltodict.parse(open(data_file, "rb"), item_depth=2, item_callback=process_one_article)
         except xmltodict.ParsingInterrupted:
             pass
         except Exception as e:
-            print(result[-1]['article']['name'])
+            self.logger.error('Fail to process {}'.format(result[-1]['article']['name']))
             raise e
         return result
 
@@ -270,8 +375,8 @@ class Pubmed(object):
         elif isinstance(data, str):
             return [data]
         elif isinstance(data, dict):
-            if field is not None:
-                return Pubmed._text_from_list_or_dict(data[field])
+            if field is not None and field in data:
+                return Pubmed._text_from_list_or_dict(data[field], field)
             elif '#text' in data:
                 return [data['#text']]
             elif 'b' in data:
@@ -281,7 +386,7 @@ class Pubmed(object):
         elif isinstance(data, list or tuple):
             result = []
             for r in data:
-                result.extend(Pubmed._text_from_list_or_dict(r))
+                result.extend(Pubmed._text_from_list_or_dict(r, field))
             return result
         else:
             return []
@@ -301,17 +406,16 @@ class Pubmed(object):
             return result
         elif 'Reference' in data:
             return Pubmed._references(data['Reference'])
-        else:
-            if 'ArticleIdList' not in data:
-                return []
-            elif isinstance(data["ArticleIdList"]["ArticleId"], dict):
-                if data["ArticleIdList"]["ArticleId"]["@IdType"] == "pubmed":
-                    return [data["ArticleIdList"]["ArticleId"]["#text"]]
-                else:
-                    return []
+        elif 'ArticleIdList' not in data:
+            return []
+        elif isinstance(data["ArticleIdList"]["ArticleId"], dict):
+            if data["ArticleIdList"]["ArticleId"]["@IdType"] == "pubmed":
+                return [data["ArticleIdList"]["ArticleId"]["#text"]]
             else:
-                # prefer pubmed id
-                return [r["#text"] for r in data["ArticleIdList"]["ArticleId"] if r["@IdType"] == "pubmed"]
+                return []
+        else:
+            # prefer pubmed id
+            return [r["#text"] for r in data["ArticleIdList"]["ArticleId"] if r["@IdType"] == "pubmed"]
 
     @staticmethod
     def _abstract(data: dict, product: dict) -> None:
@@ -367,6 +471,8 @@ class Pubmed(object):
                 user['name'] = a['LastName']
             if 'AffiliationInfo' in a:
                 def parse_affiliation(aff):
+                    if aff is None:
+                        return None
                     if isinstance(aff, str):
                         return aff
                     if '#text' in aff:
@@ -380,7 +486,15 @@ class Pubmed(object):
                         user['affiliation'].append(parse_affiliation(d['Affiliation']))
                 elif isinstance(a['AffiliationInfo'], str):
                     user['affiliation'].append(parse_affiliation(a['AffiliationInfo']))
-                user['affiliation'] = [a for a in user['affiliation'] if a is not None]
+                affiliation = []
+                for a in user['affiliation']:
+                    if a is None:
+                        continue
+                    if isinstance(a, dict) and '#text' in a:
+                        affiliation.append(a['#text'])
+                    elif isinstance(a, str):
+                        affiliation.append(a)
+                user['affiliation'] = affiliation
             return user
 
         result = []
@@ -393,4 +507,4 @@ class Pubmed(object):
 
 if __name__ == '__main__':
     Pubmed('mongodb://zhangtemplar:Button2015@eve.zhqiang.org:27017/data?authSource=admin').process(
-        os.path.expanduser('~/Downloads/'))
+        os.path.expanduser('~/Downloads/pubmed'))
