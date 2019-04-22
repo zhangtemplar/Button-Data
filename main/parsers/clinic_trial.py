@@ -104,7 +104,11 @@ class ClinicalTrial(object):
         if 'role' in data:
             user['exp']['exp']['title'] = data['role']
         if 'affiliation' in data:
+            user['abs'] = data['affiliation']
             user['exp']['exp']['company'] = data['affiliation']
+        elif 'organization' in data:
+            user['abs'] = data['organization']
+            user['exp']['exp']['company'] = data['organization']
         phone = []
         if 'phone' in data:
             phone.append(data['phone'])
@@ -117,8 +121,6 @@ class ClinicalTrial(object):
                 user['edu']['degree'] = data['degrees']
         if len(user['name']) < 0:
             user['name'] = user['contact']['email'] if len(user['contact']['email']) > 0 else 'Anonymous'
-        if len(user['abs']) < 0:
-            user['abs'] = 'Principal Investigator'
         return user
 
     @staticmethod
@@ -157,14 +159,20 @@ class ClinicalTrial(object):
         if 'overall_contact_backup' in trial:
             users.append(ClinicalTrial._add_user(trial['overall_contact_backup']))
             del trial['overall_contact_backup']
+        address = None
         if 'location' in trial:
             if isinstance(trial['location'], dict):
                 users.extend(ClinicalTrial._add_users_for_location(trial['location']))
             else:
                 [users.extend(ClinicalTrial._add_users_for_location(location)) for location in trial['location']]
+                address = users[-1]['addr']
         if 'clinical_results' in trial and 'point_of_contact' in trial['clinical_results']:
             users.append(ClinicalTrial._add_user(trial['clinical_results']['point_of_contact']))
             del trial['clinical_results']['point_of_contact']
+        if address is not None:
+            for u in users:
+                if len(u['addr']['country']) < 1:
+                    u['addr'] = address
         return users
 
     @staticmethod
@@ -231,6 +239,22 @@ class ClinicalTrial(object):
         if 'biospec_retention' in trial:
             tag.append(trial['biospec_retention'])
             del trial['biospec_retention']
+        return tag
+
+    @staticmethod
+    def _find_indication(trial: dict) -> list:
+        """
+        Find the indication from the trial.
+
+        :param trial: a dictionary contains the clinical trial indication
+        :return: types of trial as a list of strings
+        """
+        tag = []
+        if 'condition' in trial:
+            if isinstance(trial['condition'], list):
+                tag.extend(trial['condition'])
+            else:
+                tag.append(trial['condition'])
         if 'condition_browse' in trial:
             if isinstance(trial['condition_browse']['mesh_term'], list):
                 tag.extend(trial['condition_browse']['mesh_term'])
@@ -289,6 +313,7 @@ class ClinicalTrial(object):
             del trial['overall_contact']
         # type
         product['tag'] = self._find_type(trial)
+        product['asset']['ind'] = self._find_indication(trial)
         try:
             product['created'] = parser.parse(trial['study_first_submitted']).strftime("%a, %d %b %Y %H:%M:%S GMT")
         except:
