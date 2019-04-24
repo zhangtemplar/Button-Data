@@ -14,6 +14,8 @@ from collections import OrderedDict
 import xmltodict
 
 from base.template import create_user, create_product
+from base.util import merge_dictionary
+
 
 log = logging.getLogger('clinic_trial')
 log.setLevel(logging.DEBUG)
@@ -126,18 +128,35 @@ class ClinicalTrial(object):
     @staticmethod
     def _add_users_for_location(location: dict) -> list:
         users = []
-        if 'contact' in location:
-            users.append(ClinicalTrial._add_user(location['contact']))
-            del location['contact']
-        if 'contact_backup' in location:
-            users.append(ClinicalTrial._add_user(location['contact_backup']))
-            del location['contact_backup']
         if 'investigator' in location:
             if isinstance(location['investigator'], dict):
                 users.append(ClinicalTrial._add_user(location['investigator']))
             else:
                 users.extend([ClinicalTrial._add_user(user) for user in location['investigator']])
             del location['investigator']
+        if 'contact' in location:
+            users.append(ClinicalTrial._add_user(location['contact']))
+            del location['contact']
+        if 'contact_backup' in location:
+            users.append(ClinicalTrial._add_user(location['contact_backup']))
+            del location['contact_backup']
+
+        # for address
+        facility = None
+        if 'facility' in location:
+            if isinstance(location['facility'], list) and len(location['facility']) > 0:
+                facility = location['facility'][0]
+            elif isinstance(location['facility'], dict):
+                facility = location['facility']
+            del location['facility']
+        if facility is not None and 'address' in facility:
+            # if multiple address available, use the first one
+            if isinstance(facility['address'], dict):
+                for u in users:
+                    u['addr'].update(facility['address'])
+            elif len(facility['address']) > 0:
+                for u in users:
+                    u['addr'].update(facility['address'][0])
         return users
 
     @staticmethod
@@ -159,21 +178,31 @@ class ClinicalTrial(object):
         if 'overall_contact_backup' in trial:
             users.append(ClinicalTrial._add_user(trial['overall_contact_backup']))
             del trial['overall_contact_backup']
-        address = None
         if 'location' in trial:
             if isinstance(trial['location'], dict):
                 users.extend(ClinicalTrial._add_users_for_location(trial['location']))
             else:
                 [users.extend(ClinicalTrial._add_users_for_location(location)) for location in trial['location']]
-                address = users[-1]['addr']
         if 'clinical_results' in trial and 'point_of_contact' in trial['clinical_results']:
             users.append(ClinicalTrial._add_user(trial['clinical_results']['point_of_contact']))
             del trial['clinical_results']['point_of_contact']
-        if address is not None:
-            for u in users:
-                if len(u['addr']['country']) < 1:
-                    u['addr'] = address
-        return users
+        return ClinicalTrial.merge_duplicate_user(users)
+
+    @staticmethod
+    def merge_duplicate_user(users: list) -> list:
+        result = {}
+        for u in users:
+            if u['name'] in result:
+                continue
+            duplicated = list(filter(lambda v: v['name'] == u['name'], users))
+            if len(duplicated) <= 1:
+                result[u['name']] = u
+            else:
+                root = u
+                for v in duplicated[1:]:
+                    root = merge_dictionary(root, v)
+                result[u['name']] = u
+        return list(result.values())
 
     @staticmethod
     def _add_sponsors(trial: dict) -> list:
@@ -372,14 +401,17 @@ if __name__ == '__main__':
     sourceDirectory = "/Users/zhangtemplar/Downloads/clinictrial"
     dir_list = [os.path.join(sourceDirectory, folder) for folder in os.listdir(sourceDirectory) if
                 folder.startswith("NCT")]
+    log.info('Tasks to process {}'.format(dir_list))
     pool = Pool(8)
-    # for index in dir_list:
-    #     pool.apply_async(task, args=(index,))
-    histogram = {}
     for index in dir_list:
-        pool.apply_async(histogram_task, args=(index,), callback=lambda h: histogram.update(h))
+        pool.apply_async(task, args=(index,))
     pool.close()
     pool.join()
-    json.dump(histogram, open(os.path.join(sourceDirectory, 'histogram.json'), 'w'), indent=2)
-    result = OrderedDict(sorted(histogram.items(), key=lambda i: -(i[1])))
-    json.dump(result, open(os.path.join(sourceDirectory, 'histogram_sorted.json'), 'w'), indent=2)
+    # histogram = {}
+    # for index in dir_list:
+    #     pool.apply_async(histogram_task, args=(index,), callback=lambda h: histogram.update(h))
+    # pool.close()
+    # pool.join()
+    # json.dump(histogram, open(os.path.join(sourceDirectory, 'histogram.json'), 'w'), indent=2)
+    # result = OrderedDict(sorted(histogram.items(), key=lambda i: -(i[1])))
+    # json.dump(result, open(os.path.join(sourceDirectory, 'histogram_sorted.json'), 'w'), indent=2)
