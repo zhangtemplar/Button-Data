@@ -191,3 +191,24 @@ def compute_signature(token: str, url: str, data: str=None) -> str:
         middle = middle.encode('utf-8')
     truth = hmac.new(middle, data, sha1).hexdigest()
     return truth
+
+
+def merge_dictionary(left: dict, right: dict) -> dict:
+    """
+    Merge content of right to left.
+
+    :param left: object to be merged to. Its content will be modified.
+    :param right: object to merge
+    :return: the merge object
+    """
+    for k in right:
+        if k not in left:
+            left[k] = right[k]
+        elif isinstance(left[k], list):
+            left[k].extend(right[k])
+            left[k] = list(set(left[k]))
+        elif isinstance(left[k], dict):
+            left[k] = merge_dictionary(left[k], right[k])
+        elif isinstance(left[k], str) and len(left[k]) < 1:
+            left[k] = right[k]
+    return left
