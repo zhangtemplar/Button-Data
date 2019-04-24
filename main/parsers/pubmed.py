@@ -17,7 +17,7 @@ from pymongo import MongoClient
 
 from base.template import create_product, create_user, create_relationship, add_record
 from base.union_find import UnionFind
-from base.util import create_logger, normalize_email, normalize_phone
+from base.util import create_logger, normalize_email, normalize_phone, parse_us_address
 
 
 class Pubmed(object):
@@ -65,7 +65,7 @@ class Pubmed(object):
                 for u in users:
                     affiliation = u['affiliation']
                     if len(affiliation) < 1:
-                        key = (u['name'], u['name'])
+                        key = (u['name'], article['name'])
                     else:
                         key = (u['name'], affiliation[0])
                     root = self.authors.find(key)
@@ -249,7 +249,7 @@ class Pubmed(object):
             if len(users) >= 1000:
                 response = add_record('entity', users)
                 if response['_status'] != 'OK':
-                    self.logger.error('fail to create user'.format(a['name']))
+                    self.logger.error('fail to create user'.format(a))
                 else:
                     for u, r in zip(users, response['_items']):
                         user_ids[(u['name'], u['abs'])] = r['_id']
@@ -257,7 +257,7 @@ class Pubmed(object):
         if len(users) > 0:
             response = add_record('entity', users)
             if response['_status'] != 'OK':
-                self.logger.error('fail to create user'.format(a['name']))
+                self.logger.error('fail to create user'.format(a))
             else:
                 for u, r in zip(users, response['_items']):
                     user_ids[(u['name'], u['abs'])] = r['_id']
@@ -503,6 +503,26 @@ class Pubmed(object):
         elif isinstance(data, list or tuple):
             result.extend([parse_user(d) for d in data])
         return [r for r in result if r is not None]
+
+
+def upload_user_to_server(file_name):
+    data = pickle.load(open(file_name, 'rb'))
+    # upload the user to the server
+    users = []
+    for a in data:
+        user = create_user()
+        user['name'] = a[0]
+        user['abs'] = a[1]
+        user['ref'] = a[1]
+        user['contact']['email'] = normalize_email(a[1])
+        user['contact']['phone'] = normalize_phone(a[1])
+        user['tag'] = data[a]['keyword']
+        user['onepage']['prod'] = data[a]['citation']
+        # try to parse the address
+        addr = parse_us_address(a[1])
+        if addr is not None:
+            user['addr'] = addr
+    json.dump(users, open('pubmed_author.json', 'wb'))
 
 
 if __name__ == '__main__':
