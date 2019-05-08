@@ -8,6 +8,8 @@ from urllib.request import quote
 from zhon.hanzi import punctuation
 import string
 from base.credential import AMAP_KEY
+from dateutil.parser import parse
+from collections import OrderedDict
 
 
 def dictionary_to_markdown(data: dict, keys=None):
@@ -106,8 +108,8 @@ def parse_us_address(text: str) -> dict or None:
             'country': address['Country'],
             'state': address['State'],
             'zip': address['PostalCode'],
-            'line1': ''.join(response['geocodes'][0]['street']) + ' ' + ''.join(response['geocodes'][0]['number']),
-            'line2': response['geocodes'][0]['district'] + ' ' + ''.join(response['geocodes'][0]['township']),
+            'line1': '',
+            'line2': '',
         }
     except Exception as e:
         traceback.print_tb(e.__traceback__)
@@ -130,7 +132,7 @@ def parse_chinese_address(text: str) -> dict or None:
                 'state': response['geocodes'][0]['province'],
                 'zip': response['geocodes'][0]['adcode'],
                 'line1': ''.join(response['geocodes'][0]['street']) + ' ' + ''.join(response['geocodes'][0]['number']),
-                'line2': response['geocodes'][0]['district'] + ' ' + ''.join(response['geocodes'][0]['township']),
+                'line2': ''.join(response['geocodes'][0]['district']) + ' ' + ''.join(response['geocodes'][0]['township']),
             }
     except Exception as e:
         traceback.print_tb(e.__traceback__)
@@ -212,3 +214,36 @@ def merge_dictionary(left: dict, right: dict) -> dict:
         elif isinstance(left[k], str) and len(left[k]) < 1:
             left[k] = right[k]
     return left
+
+
+def format_datetime(input: str) -> str:
+    """
+    Formats a datetime str to a standard format.
+    :param input:
+    :return:
+    """
+    try:
+        return parse(input).strftime("%a, %d %b %Y %H:%M:%S GMT")
+    except:
+        return None
+
+
+def format_html_table(data: dict) -> str:
+    """
+    Format the input dictionary as a html table.
+
+    :param data: a dictionary
+    :return: the dictionary formatted as a html table
+    """
+    if isinstance(data, dict or OrderedDict):
+        if len(data.keys()) == 1 and 'textblock' in data:
+            return str(data['textblock'])
+        elif '#text' in data:
+            return str(data['#text'])
+        else:
+            return '<table><tbody>{}</tbody></table>'.format(
+                '\n'.join(['<tr><td>{}</td><td>{}</td></tr>'.format(k, format_html_table(data[k])) for k in data]))
+    elif isinstance(data, list or tuple):
+        return '<ul>{}</ul>'.format('\n'.join(['<li>{}</li>'.format(format_html_table(d)) for d in data]))
+    else:
+        return data

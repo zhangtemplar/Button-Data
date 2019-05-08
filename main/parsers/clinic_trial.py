@@ -10,11 +10,10 @@ import logging
 import os
 from multiprocessing import Pool
 from dateutil import parser
-from collections import OrderedDict
 import xmltodict
 
 from base.template import create_user, create_product
-from base.util import merge_dictionary
+from base.util import merge_dictionary, format_html_table
 
 
 log = logging.getLogger('clinic_trial')
@@ -47,7 +46,7 @@ class ClinicalTrial(object):
             result.append(self.process_file(file_name))
             # os.remove(file_name)
         with open(self.sourceDirectory + '.json', 'w') as fo:
-            json.dump(result, fo, ensure_ascii=False)
+            json.dump(result, fo, ensure_ascii=False, indent=2)
 
     def histogram_indication(self, hist: dict=None) -> dict:
         """
@@ -355,29 +354,12 @@ class ClinicalTrial(object):
         product['asset']['stat'] = self._get_status(trial)
         # for other details
         del trial['overall_status']
-        product['asset']['tech'] = "\n\n".join(self.to_markdown(trial))
+        product['asset']['tech'] = format_html_table(trial)
         for s in sponsors:
             s['ref'] = product['ref']
         for u in users:
             u['ref'] = product['ref']
         return {'product': product, 'sponsors': sponsors, 'users': users}
-
-    @staticmethod
-    def to_markdown(data: dict, level: int = 1) -> list:
-        output = []
-        if isinstance(data, dict):
-            if len(data.keys()) == 1 and 'textblock' in data:
-                output.append(str(data['textblock']))
-            else:
-                for key in data:
-                    output.append("#"*level)
-                    output.extend(ClinicalTrial.to_markdown(data[key], level + 1))
-        elif isinstance(data, list) or isinstance(data, tuple):
-            for value in data:
-                output.extend(ClinicalTrial.to_markdown(value, level))
-        else:
-            output.append(str(data))
-        return output
 
 
 def task(directory):
@@ -402,11 +384,12 @@ if __name__ == '__main__':
     dir_list = [os.path.join(sourceDirectory, folder) for folder in os.listdir(sourceDirectory) if
                 folder.startswith("NCT")]
     log.info('Tasks to process {}'.format(dir_list))
-    pool = Pool(8)
-    for index in dir_list:
-        pool.apply_async(task, args=(index,))
-    pool.close()
-    pool.join()
+    task(dir_list[0])
+    # pool = Pool(8)
+    # for index in dir_list:
+    #     pool.apply_async(task, args=(index,))
+    # pool.close()
+    # pool.join()
     # histogram = {}
     # for index in dir_list:
     #     pool.apply_async(histogram_task, args=(index,), callback=lambda h: histogram.update(h))
