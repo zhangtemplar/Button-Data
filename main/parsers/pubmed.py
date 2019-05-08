@@ -20,6 +20,23 @@ from base.union_find import UnionFind
 from base.util import create_logger, normalize_email, normalize_phone, parse_us_address
 
 
+def parse_address(affiliation: str, cache: dict={}):
+    """
+    Parse the address from affiliation information.
+
+    :param affiliation: the affiliation string which may contain the address
+    :param cache: the cache of the parse result
+    :return: the parsed address or None if address is not detected
+    """
+    if affiliation in cache:
+        return cache[affiliation]
+    else:
+        return None
+    address = parse_us_address(affiliation)
+    if address is not None:
+        cache[affiliation] = address
+    return address
+
 class Pubmed(object):
     def __init__(self, mongo_uri: str):
         self.client = MongoClient(mongo_uri)
@@ -46,12 +63,19 @@ class Pubmed(object):
                 pickle.dump(result, fo)
         self.process_author(data_file)
         citation = self.compute_citation(data_file)
-        self.compute_author_impact(data_file, citation)
+        author_impact = self.compute_author_impact(data_file, citation)
 
         article_ids = self.upload_article(data_file)
         self.upload_reference(data_file, article_ids)
 
-        author_ids = self.upload_author()
+        # build the cache
+        if os.path.exists(os.path.expanduser('~/Downloads/pubmed_author.json')):
+            author_cache = json.load(open(os.path.expanduser('~/Downloads/pubmed_author.json'), 'r'))
+            author_cache = {a['abs']: a['addr'] for a in author_cache}
+            self.parse_address = lambda affiliation: parse_address(affiliation, author_cache)
+        else:
+            self.parse_address = parse_address
+        author_ids = self.upload_author(author_impact)
         self.upload_authorship(data_file, author_ids, article_ids)
 
     def compute_author_impact(self, data_file: List[str], citations: Dict) -> Dict:
@@ -223,11 +247,11 @@ class Pubmed(object):
                         if a is not affiliation[0]:
                             self.authors.union((name, a), (name, affiliation[0]))
 
-    def upload_author(self) -> dict:
+    def upload_author(self, author_impact: dict) -> dict:
         """
         Upload the unique authors to the database.
 
-        :param data_file: list of files containing the data from preprocess step
+        :param author_impact: author citation data
         :return: a dictionary using the ref of author as key and its _id in database as value
         """
 
@@ -244,7 +268,15 @@ class Pubmed(object):
             user['ref'] = a[1]
             user['contact']['email'] = normalize_email(a[1])
             user['contact']['phone'] = normalize_phone(a[1])
+            user['exp']['impact'] = author_impact[a]['citation'] if a in author_impact else 0
+            user['exp']['impact'] = author_impact[a]['keyword'] if a in author_impact else []
             user['onepage']['bg'] = json.dumps([u[1] for u in author_dict[a]])
+            address = self.parse_address(a[1])
+            if address is not None:
+                user['addr'] = address
+            else:
+                user['addr']['city'] = 'Unknown'
+                user['addr']['country'] = 'Unknown'
             users.append(user)
             if len(users) >= 1000:
                 response = add_record('entity', users)
