@@ -51,7 +51,7 @@ class PatentsView(object):
     }
 
     def init_cpc_group(self, data_name):
-        if os.path.exists(data_name[:-3] + 'tsv'):
+        if os.path.exists(data_name[:-3] + 'json'):
             self.cpc_group = json.load(open(data_name[:-3] + 'json', 'r'))
             return
         first_line = True
@@ -65,7 +65,7 @@ class PatentsView(object):
         json.dump(self.cpc_group, open(data_name[:-3] + 'json', 'w'))
 
     def init_cpc_subgroup(self, data_name):
-        if os.path.exists(data_name[:-3] + 'tsv'):
+        if os.path.exists(data_name[:-3] + 'json'):
             self.cpc_subgroup = json.load(open(data_name[:-3] + 'json', 'r'))
             return
         first_line = True
@@ -79,7 +79,7 @@ class PatentsView(object):
         json.dump(self.cpc_subgroup, open(data_name[:-3] + 'json', 'w'))
 
     def init_cpc_subsection(self, data_name):
-        if os.path.exists(data_name[:-3] + 'tsv'):
+        if os.path.exists(data_name[:-3] + 'json'):
             self.cpc_subsection = json.load(open(data_name[:-3] + 'json', 'r'))
             return
         first_line = True
@@ -93,7 +93,7 @@ class PatentsView(object):
         json.dump(self.cpc_subsection, open(data_name[:-3] + 'json', 'w'))
 
     def init_nber_category(self, data_name):
-        if os.path.exists(data_name[:-3] + 'tsv'):
+        if os.path.exists(data_name[:-3] + 'json'):
             self.nber_category = json.load(open(data_name[:-3] + 'json', 'r'))
             return
         first_line = True
@@ -107,7 +107,7 @@ class PatentsView(object):
         json.dump(self.nber_category, open(data_name[:-3] + 'json', 'w'))
 
     def init_npr_subcategory(self, data_name):
-        if os.path.exists(data_name[:-3] + 'tsv'):
+        if os.path.exists(data_name[:-3] + 'json'):
             self.npr_subcategory = json.load(open(data_name[:-3] + 'json', 'r'))
             return
         first_line = True
@@ -121,7 +121,7 @@ class PatentsView(object):
         json.dump(self.npr_subcategory, open(data_name[:-3] + 'json', 'w'))
 
     def init_uspc_class(self, data_name):
-        if os.path.exists(data_name[:-3] + 'tsv'):
+        if os.path.exists(data_name[:-3] + 'json'):
             self.uspc_class = json.load(open(data_name[:-3] + 'json', 'r'))
             return
         first_line = True
@@ -135,7 +135,7 @@ class PatentsView(object):
         json.dump(self.uspc_class, open(data_name[:-3] + 'json', 'w'))
 
     def init_uspc_subclass(self, data_name):
-        if os.path.exists(data_name[:-3] + 'tsv'):
+        if os.path.exists(data_name[:-3] + 'json'):
             self.uspc_subclass = json.load(open(data_name[:-3] + 'json', 'r'))
             return
         first_line = True
@@ -149,7 +149,7 @@ class PatentsView(object):
         json.dump(self.uspc_subclass, open(data_name[:-3] + 'json', 'w'))
 
     def init_wipo_field(self, data_name):
-        if os.path.exists(data_name[:-3] + 'tsv'):
+        if os.path.exists(data_name[:-3] + 'json'):
             self.wipo_field = json.load(open(data_name[:-3] + 'json', 'r'))
             return
         first_line = True
@@ -163,7 +163,7 @@ class PatentsView(object):
         json.dump(self.wipo_field, open(data_name[:-3] + 'json', 'w'))
 
     def init_uspto_class(self, data_name):
-        if os.path.exists(data_name[:-3] + 'tsv'):
+        if os.path.exists(data_name[:-3] + 'json'):
             self.uspto_class = json.load(open(data_name[:-3] + 'json', 'r'))
             return
         first_line = True
