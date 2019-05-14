@@ -247,3 +247,7 @@ def format_html_table(data: dict) -> str:
         return '<ul>{}</ul>'.format('\n'.join(['<li>{}</li>'.format(format_html_table(d)) for d in data]))
     else:
         return data
+
+
+def unique(data: list) -> list:
+    return list(set(data))
