@@ -38,7 +38,7 @@ class PatentsView(object):
         'H': 'Electricity',
         'Y': 'General Tagging of New Technological Developments',
     }
-    
+
     IPCR_CLASSIFICATION_SECTION = {
         'A': 'Human Necessitites',
         'B': 'Performing Operations; Transporting',
@@ -106,9 +106,9 @@ class PatentsView(object):
                 self.nber_category[data[0]] = data[1]
         json.dump(self.nber_category, open(data_name[:-3] + 'json', 'w'))
 
-    def init_npr_subcategory(self, data_name):
+    def init_nber_subcategory(self, data_name):
         if os.path.exists(data_name[:-3] + 'json'):
-            self.npr_subcategory = json.load(open(data_name[:-3] + 'json', 'r'))
+            self.nber_subcategory = json.load(open(data_name[:-3] + 'json', 'r'))
             return
         first_line = True
         with open(data_name, 'r') as fi:
@@ -117,8 +117,8 @@ class PatentsView(object):
                     first_line = False
                     continue
                 data = line.split('\t')
-                self.npr_subcategory[data[0]] = data[1]
-        json.dump(self.npr_subcategory, open(data_name[:-3] + 'json', 'w'))
+                self.nber_subcategory[data[0]] = data[1]
+        json.dump(self.nber_subcategory, open(data_name[:-3] + 'json', 'w'))
 
     def init_uspc_class(self, data_name):
         if os.path.exists(data_name[:-3] + 'json'):
@@ -189,13 +189,13 @@ class PatentsView(object):
         self.cpc_subsection = {}
         self.init_cpc_subgroup(os.path.join(data_path, 'cpc_subsection.tsv'))
         self.nber_category = {}
-        self.init_nber_category(os.path.join(data_path, 'nbr_category.tsv'))
+        self.init_nber_category(os.path.join(data_path, 'nber_category.tsv'))
         self.nber_subcategory = {}
-        self.init_npr_subcategory(os.path.join(data_path, 'nbr_subcategory.tsv'))
+        self.init_nber_subcategory(os.path.join(data_path, 'nber_subcategory.tsv'))
         self.uspc_class = {}
-        self.init_uspc_class(os.path.join(data_path, 'uspc_class.tsv'))
+        self.init_uspc_class(os.path.join(data_path, 'mainclass_current.tsv'))
         self.uspc_subclass = {}
-        self.init_uspc_subclass(os.path.join(data_path, 'uspc_subclass.tsv'))
+        self.init_uspc_subclass(os.path.join(data_path, 'subclass_current.tsv'))
         self.wipo_field = {}
         self.init_wipo_field(os.path.join(data_path, 'wipo_field.tsv'))
         self.uspto_class = {}
@@ -208,25 +208,31 @@ class PatentsView(object):
     def process_patent(self):
         result = {}
         # load the patent
+        self.logger.critical('patent')
         with open(os.path.join(self.data_path, 'patent.tsv'), 'r') as fi:
             first_line = True
             for line in fi:
                 if first_line:
                     first_line = False
                     continue
+                if len(line.split('\t')) != len(self.PATENT_HEADER):
+                    self.logger.error('fail to parse {}'.format(line))
+                    continue
                 d = {k: v for k, v in zip(self.PATENT_HEADER, line.split('\t'))}
+                self.logger.debug(d['number'])
                 patent = create_product()
                 patent['tag'].append(d['type'])
-                patent['ref'].append(d['number'])
+                patent['ref'] = d['number']
                 patent['addr']['country'] = d['country']
                 patent['updated'] = format_datetime(d['date'])
                 patent['abs'] = d['abstract']
                 patent['name'] = d['title']
                 patent['tag'].append(d['kind'])
                 patent['tag'] = remove_empty_string_from_array(patent['tag'])
-                result[patent['id']] = patent
+                result[patent['ref']] = patent
         json.dump(result, open(os.path.join(self.data_path, 'patent.json'), 'w'))
         # load the application
+        self.logger.critical('patent')
         with open(os.path.join(self.data_path, 'application.tsv'), 'r') as fi:
             first_line = True
             for line in fi:
@@ -239,6 +245,7 @@ class PatentsView(object):
                 result[patent_id]['created'] = patent_created
         json.dump(result, open(os.path.join(self.data_path, 'application.json'), 'w'))
         # load the brief summary
+        self.logger.critical('patent')
         with open(os.path.join(self.data_path, 'brf_sum_text.tsv'), 'r') as fi:
             first_line = True
             for line in fi:
@@ -251,6 +258,7 @@ class PatentsView(object):
                 result[patent_id]['intro'] += patent_intro
         json.dump(result, open(os.path.join(self.data_path, 'brf_sum_text.json'), 'w'))
         # load the claim
+        self.logger.critical('patent')
         with open(os.path.join(self.data_path, 'claim.tsv'), 'r') as fi:
             first_line = True
             for line in fi:
@@ -263,6 +271,7 @@ class PatentsView(object):
                 result[patent_id]['asset']['market'] += patent_claim
         json.dump(result, open(os.path.join(self.data_path, 'claim.json'), 'w'))
         # load the cpc tag
+        self.logger.critical('patent')
         with open(os.path.join(self.data_path, 'cpc_current.tsv'), 'r') as fi:
             first_line = True
             for line in fi:
@@ -280,6 +289,7 @@ class PatentsView(object):
                 result[patent_id]['tag'] = unique(result[patent_id]['tag'])
         json.dump(result, open(os.path.join(self.data_path, 'cpc_current.json'), 'w'))
         # load the foreign priority
+        self.logger.critical('foreign_priority')
         with open(os.path.join(self.data_path, 'foreign_priority.tsv'), 'r') as fi:
             first_line = True
             for line in fi:
@@ -294,6 +304,7 @@ class PatentsView(object):
                 result[patent_id]['asset']['lic'].append(data[4])
         json.dump(result, open(os.path.join(self.data_path, 'foreign_priority.json'), 'w'))
         # load the government interest
+        self.logger.critical('government_interest')
         with open(os.path.join(self.data_path, 'government_interest.tsv'), 'r') as fi:
             first_line = True
             for line in fi:
@@ -305,6 +316,7 @@ class PatentsView(object):
                 result[patent_id]['asset']['market'].append(data[1])
         json.dump(result, open(os.path.join(self.data_path, 'government_interest.json'), 'w'))
         # load the us_term_of_grant
+        self.logger.critical('us_term_of_grant')
         with open(os.path.join(self.data_path, 'us_term_of_grant.tsv'), 'r') as fi:
             first_line = True
             for line in fi:
@@ -317,6 +329,7 @@ class PatentsView(object):
                 result[patent_id]['asset']['market'].append(format_html_table(detail))
         json.dump(result, open(os.path.join(self.data_path, 'us_term_of_grant.json'), 'w'))
         # load the nber tag
+        self.logger.critical('nber')
         with open(os.path.join(self.data_path, 'nber.tsv'), 'r') as fi:
             first_line = True
             for line in fi:
@@ -332,6 +345,7 @@ class PatentsView(object):
                 result[patent_id]['tag'] = unique(result[patent_id]['tag'])
         json.dump(result, open(os.path.join(self.data_path, 'nber.json'), 'w'))
         # load the uspc
+        self.logger.critical('uspc')
         with open(os.path.join(self.data_path, 'uspc.tsv'), 'r') as fi:
             first_line = True
             for line in fi:
@@ -347,6 +361,7 @@ class PatentsView(object):
                 result[patent_id]['tag'] = unique(result[patent_id]['tag'])
         json.dump(result, open(os.path.join(self.data_path, 'uspc.json'), 'w'))
         # load the uspc
+        self.logger.critical('uspc_current')
         with open(os.path.join(self.data_path, 'uspc_current.tsv'), 'r') as fi:
             first_line = True
             for line in fi:
@@ -362,6 +377,7 @@ class PatentsView(object):
                 result[patent_id]['tag'] = unique(result[patent_id]['tag'])
         json.dump(result, open(os.path.join(self.data_path, 'uspc_current.json'), 'w'))
         # load the wipo
+        self.logger.critical('wipo')
         with open(os.path.join(self.data_path, 'wipo.tsv'), 'r') as fi:
             first_line = True
             for line in fi:
