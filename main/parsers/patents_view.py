@@ -5,10 +5,12 @@ __email__ = "zhangtemplar@gmail.com"
 """
 Process the patents data from http://www.patentsview.org/download/
 """
-import os
-from base.util import create_logger, format_datetime, remove_empty_string_from_array, format_html_table, unique
-from base.template import create_product, create_user
 import json
+import os
+from typing import *
+
+from base.template import create_product
+from base.util import create_logger, format_datetime, remove_empty_string_from_array, format_html_table, unique
 
 
 class PatentsView(object):
@@ -187,7 +189,7 @@ class PatentsView(object):
         self.cpc_subgroup = {}
         self.init_cpc_subgroup(os.path.join(data_path, 'cpc_subgroup.tsv'))
         self.cpc_subsection = {}
-        self.init_cpc_subgroup(os.path.join(data_path, 'cpc_subsection.tsv'))
+        self.init_cpc_subsection(os.path.join(data_path, 'cpc_subsection.tsv'))
         self.nber_category = {}
         self.init_nber_category(os.path.join(data_path, 'nber_category.tsv'))
         self.nber_subcategory = {}
@@ -205,189 +207,216 @@ class PatentsView(object):
         'id', 'type', 'number', 'country', 'date', 'abstract', 'title', 'kind', 'num_claims', 'filename', 'withdrawn']
     US_TERM_OF_GRANT_HEADER = ['lapse_of_patent', 'disclaimer_date', 'term_disclaimer', 'term_grant', 'term_extension']
 
-    def process_patent(self):
-        result = {}
-        # load the patent
-        self.logger.critical('patent')
-        with open(os.path.join(self.data_path, 'patent.tsv'), 'r') as fi:
-            first_line = True
-            for line in fi:
-                if first_line:
-                    first_line = False
+    @staticmethod
+    def process_file(
+            input_name: str,
+            output_name: str,
+            result: dict,
+            callback: Callable,
+            save_callback: Callable = None):
+        if os.path.exists(output_name):
+            result = json.load(open(output_name, 'r'))
+        with open(input_name, 'r') as fi:
+            for count, line in enumerate(fi):
+                if count == 0:
                     continue
-                if len(line.split('\t')) != len(self.PATENT_HEADER):
-                    self.logger.error('fail to parse {}'.format(line))
+                if count <= len(result):
                     continue
-                d = {k: v for k, v in zip(self.PATENT_HEADER, line.split('\t'))}
-                self.logger.debug(d['number'])
-                patent = create_product()
-                patent['tag'].append(d['type'])
-                patent['ref'] = d['number']
-                patent['addr']['country'] = d['country']
-                patent['updated'] = format_datetime(d['date'])
-                patent['abs'] = d['abstract']
-                patent['name'] = d['title']
-                patent['tag'].append(d['kind'])
-                patent['tag'] = remove_empty_string_from_array(patent['tag'])
-                result[patent['ref']] = patent
-        json.dump(result, open(os.path.join(self.data_path, 'patent.json'), 'w'))
-        # load the application
-        self.logger.critical('patent')
-        with open(os.path.join(self.data_path, 'application.tsv'), 'r') as fi:
-            first_line = True
-            for line in fi:
-                if first_line:
-                    first_line = False
-                    continue
-                data = line.split('\t')
-                patent_id = data[1]
-                patent_created = format_datetime(data[5])
-                result[patent_id]['created'] = patent_created
-        json.dump(result, open(os.path.join(self.data_path, 'application.json'), 'w'))
-        # load the brief summary
-        self.logger.critical('patent')
-        with open(os.path.join(self.data_path, 'brf_sum_text.tsv'), 'r') as fi:
-            first_line = True
-            for line in fi:
-                if first_line:
-                    first_line = False
-                    continue
-                data = line.split('\t')
-                patent_id = data[1]
-                patent_intro = data[2]
-                result[patent_id]['intro'] += patent_intro
-        json.dump(result, open(os.path.join(self.data_path, 'brf_sum_text.json'), 'w'))
-        # load the claim
-        self.logger.critical('patent')
-        with open(os.path.join(self.data_path, 'claim.tsv'), 'r') as fi:
-            first_line = True
-            for line in fi:
-                if first_line:
-                    first_line = False
-                    continue
-                data = line.split('\t')
-                patent_id = data[1]
-                patent_claim = data[2]
-                result[patent_id]['asset']['market'] += patent_claim
-        json.dump(result, open(os.path.join(self.data_path, 'claim.json'), 'w'))
-        # load the cpc tag
-        self.logger.critical('patent')
-        with open(os.path.join(self.data_path, 'cpc_current.tsv'), 'r') as fi:
-            first_line = True
-            for line in fi:
-                if first_line:
-                    first_line = False
-                    continue
-                data = line.split('\t')
-                patent_id = data[1]
-                patent_tag = []
-                patent_tag.append(self.CPC_CLASSIFICATION_SECTION[data[2]])
-                patent_tag.append(self.cpc_subsection[data[3]])
-                patent_tag.append(self.cpc_group[data[4]])
-                patent_tag.append(self.cpc_subgroup[data[5]])
-                result[patent_id]['tag'].extend(patent_tag)
-                result[patent_id]['tag'] = unique(result[patent_id]['tag'])
-        json.dump(result, open(os.path.join(self.data_path, 'cpc_current.json'), 'w'))
-        # load the foreign priority
-        self.logger.critical('foreign_priority')
-        with open(os.path.join(self.data_path, 'foreign_priority.tsv'), 'r') as fi:
-            first_line = True
-            for line in fi:
-                if first_line:
-                    first_line = False
-                    continue
-                data = line.split('\t')
-                patent_id = data[1]
-                result[patent_id]['tag'].append(data[3])
-                result[patent_id]['tag'].append(data[5])
-                result[patent_id]['tag'] = unique(result[patent_id]['tag'])
-                result[patent_id]['asset']['lic'].append(data[4])
-        json.dump(result, open(os.path.join(self.data_path, 'foreign_priority.json'), 'w'))
-        # load the government interest
-        self.logger.critical('government_interest')
-        with open(os.path.join(self.data_path, 'government_interest.tsv'), 'r') as fi:
-            first_line = True
-            for line in fi:
-                if first_line:
-                    first_line = False
-                    continue
-                data = line.split('\t')
-                patent_id = data[0]
-                result[patent_id]['asset']['market'].append(data[1])
-        json.dump(result, open(os.path.join(self.data_path, 'government_interest.json'), 'w'))
-        # load the us_term_of_grant
-        self.logger.critical('us_term_of_grant')
-        with open(os.path.join(self.data_path, 'us_term_of_grant.tsv'), 'r') as fi:
-            first_line = True
-            for line in fi:
-                if first_line:
-                    first_line = False
-                    continue
-                data = line.split('\t')
-                patent_id = data[1]
-                detail = {k: v for k, v in zip(self.US_TERM_OF_GRANT_HEADER, data[2:])}
-                result[patent_id]['asset']['market'].append(format_html_table(detail))
-        json.dump(result, open(os.path.join(self.data_path, 'us_term_of_grant.json'), 'w'))
-        # load the nber tag
-        self.logger.critical('nber')
-        with open(os.path.join(self.data_path, 'nber.tsv'), 'r') as fi:
-            first_line = True
-            for line in fi:
-                if first_line:
-                    first_line = False
-                    continue
-                data = line.split('\t')
-                patent_id = data[1]
-                patent_tag = []
-                patent_tag.append(self.nber_category[data[2]])
-                patent_tag.append(self.nber_subcategory[data[3]])
-                result[patent_id]['tag'].extend(patent_tag)
-                result[patent_id]['tag'] = unique(result[patent_id]['tag'])
-        json.dump(result, open(os.path.join(self.data_path, 'nber.json'), 'w'))
-        # load the uspc
-        self.logger.critical('uspc')
-        with open(os.path.join(self.data_path, 'uspc.tsv'), 'r') as fi:
-            first_line = True
-            for line in fi:
-                if first_line:
-                    first_line = False
-                    continue
-                data = line.split('\t')
-                patent_id = data[1]
-                patent_tag = []
-                patent_tag.append(self.uspc_class[data[2]])
-                patent_tag.append(self.uspc_subclass[data[3]])
-                result[patent_id]['tag'].extend(patent_tag)
-                result[patent_id]['tag'] = unique(result[patent_id]['tag'])
-        json.dump(result, open(os.path.join(self.data_path, 'uspc.json'), 'w'))
-        # load the uspc
-        self.logger.critical('uspc_current')
-        with open(os.path.join(self.data_path, 'uspc_current.tsv'), 'r') as fi:
-            first_line = True
-            for line in fi:
-                if first_line:
-                    first_line = False
-                    continue
-                data = line.split('\t')
-                patent_id = data[1]
-                patent_tag = []
-                patent_tag.append(self.uspc_class[data[2]])
-                patent_tag.append(self.uspc_subclass[data[3]])
-                result[patent_id]['tag'].extend(patent_tag)
-                result[patent_id]['tag'] = unique(result[patent_id]['tag'])
-        json.dump(result, open(os.path.join(self.data_path, 'uspc_current.json'), 'w'))
-        # load the wipo
-        self.logger.critical('wipo')
-        with open(os.path.join(self.data_path, 'wipo.tsv'), 'r') as fi:
-            first_line = True
-            for line in fi:
-                if first_line:
-                    first_line = False
-                    continue
-                data = line.split('\t')
-                patent_id = data[0]
-                result[patent_id]['tag'].append(self.wipo_field[data[1]])
-                result[patent_id]['tag'] = unique(result[patent_id]['tag'])
-        json.dump(result, open(os.path.join(self.data_path, 'wipo.json'), 'w'))
+                if count % 100000 == 0:
+                    json.dump(result, open(output_name, 'w'))
+                    if save_callback is not None:
+                        save_callback(count)
+                callback(line.split('\t'), result)
         return result
+
+    def process_patent(self):
+        patents = {}
+        # load the patent
+
+        def patent_callback(data: List[str], result: dict) -> None:
+            if len(data) != len(self.PATENT_HEADER):
+                self.logger.error('fail to parse {}'.format(data))
+                return
+            d = {k: v for k, v in zip(self.PATENT_HEADER, data)}
+            patent = create_product()
+            patent['tag'].append(d['type'])
+            patent['ref'] = d['number']
+            patent['addr']['country'] = d['country']
+            patent['updated'] = format_datetime(d['date'])
+            patent['abs'] = d['abstract']
+            patent['name'] = d['title']
+            patent['tag'].append(d['kind'])
+            patent['tag'] = remove_empty_string_from_array(patent['tag'])
+            result[patent['ref']] = patent
+        self.logger.critical('patent')
+        patents = self.process_file(
+            os.path.join(self.data_path, 'patent.tsv'),
+            os.path.join(self.data_path, 'patent.json'),
+            patents,
+            patent_callback,
+            lambda count: self.logger.debug('processed {} data'.format(count)))
+        json.dump(patents, open(os.path.join(self.data_path, 'patent.json'), 'w'))
+
+        # load the application
+        def application_callback(data: List[str], result: dict):
+            patent_id = data[1]
+            patent_created = format_datetime(data[5])
+            result[patent_id]['created'] = patent_created
+        self.logger.critical('application')
+        patents = self.process_file(
+            os.path.join(self.data_path, 'application.tsv'),
+            os.path.join(self.data_path, 'application.json'),
+            patents,
+            application_callback,
+            lambda count: self.logger.debug('processed {} data'.format(count)))
+        json.dump(patents, open(os.path.join(self.data_path, 'application.json'), 'w'))
+
+        # load the brief summary
+        def summary_callback(data: List[str], result: dict):
+            patent_id = data[1]
+            patent_intro = data[2]
+            result[patent_id]['intro'] += patent_intro
+        self.logger.critical('brf_sum_text')
+        self.process_file(
+            os.path.join(self.data_path, 'brf_sum_text.tsv'),
+            os.path.join(self.data_path, 'brf_sum_text.json'),
+            patents,
+            summary_callback,
+            lambda count: self.logger.debug('processed {} data'.format(count)))
+        json.dump(patents, open(os.path.join(self.data_path, 'brf_sum_text.json'), 'w'))
+
+        # load the claim
+        def claim_callback(data: List[str], result: dict):
+            patent_id = data[1]
+            patent_claim = data[2]
+            result[patent_id]['asset']['market'] += patent_claim
+        self.logger.critical('claim')
+        patents = self.process_file(
+            os.path.join(self.data_path, 'claim.tsv'),
+            os.path.join(self.data_path, 'claim.json'),
+            patents,
+            claim_callback,
+            lambda count: self.logger.debug('processed {} data'.format(count)))
+        json.dump(patents, open(os.path.join(self.data_path, 'claim.json'), 'w'))
+
+        # load the cpc tag
+        def cpc_callback(data: List[str], result: dict):
+            patent_id = data[1]
+            result[patent_id]['tag'].append(self.CPC_CLASSIFICATION_SECTION[data[2]])
+            result[patent_id]['tag'].append(self.cpc_subsection[data[3]])
+            result[patent_id]['tag'].append(self.cpc_group[data[4]])
+            result[patent_id]['tag'].append(self.cpc_subgroup[data[5]])
+            result[patent_id]['tag'] = unique(result[patent_id]['tag'])
+        self.logger.critical('cpc_current')
+        patents = self.process_file(
+            os.path.join(self.data_path, 'cpc_current.tsv'),
+            os.path.join(self.data_path, 'cpc_current.json'),
+            patents,
+            cpc_callback,
+            lambda count: self.logger.debug('processed {} data'.format(count)))
+        json.dump(patents, open(os.path.join(self.data_path, 'cpc_current.json'), 'w'))
+
+        # load the foreign priority
+        def foreign_priority_callback(data: List[str], result: dict):
+            patent_id = data[1]
+            result[patent_id]['tag'].append(data[3])
+            result[patent_id]['tag'].append(data[5])
+            result[patent_id]['tag'] = unique(result[patent_id]['tag'])
+            result[patent_id]['asset']['lic'].append(data[4])
+        self.logger.critical('foreign_priority')
+        patents = self.process_file(
+            os.path.join(self.data_path, 'foreign_priority.tsv'),
+            os.path.join(self.data_path, 'foreign_priority.json'),
+            patents,
+            foreign_priority_callback,
+            lambda count: self.logger.debug('processed {} data'.format(count)))
+        json.dump(patents, open(os.path.join(self.data_path, 'foreign_priority.json'), 'w'))
+
+        # load the government interest
+        def government_interest_callback(data: List[str], result: dict):
+            patent_id = data[0]
+            result[patent_id]['asset']['market'].append(data[1])
+        self.logger.critical('government_interest')
+        patents = self.process_file(
+            os.path.join(self.data_path, 'government_interest.tsv'),
+            os.path.join(self.data_path, 'government_interest.json'),
+            patents,
+            government_interest_callback,
+            lambda count: self.logger.debug('processed {} data'.format(count)))
+        json.dump(patents, open(os.path.join(self.data_path, 'government_interest.json'), 'w'))
+
+        # load the us_term_of_grant
+        def us_term_of_grant_interest_callback(data: List[str], result: dict):
+            patent_id = data[1]
+            detail = {k: v for k, v in zip(self.US_TERM_OF_GRANT_HEADER, data[2:])}
+            result[patent_id]['asset']['market'].append(format_html_table(detail))
+        self.logger.critical('us_term_of_grant')
+        patents = self.process_file(
+            os.path.join(self.data_path, 'us_term_of_grant.tsv'),
+            os.path.join(self.data_path, 'us_term_of_grant.json'),
+            patents,
+            us_term_of_grant_interest_callback,
+            lambda count: self.logger.debug('processed {} data'.format(count)))
+        json.dump(patents, open(os.path.join(self.data_path, 'us_term_of_grant.json'), 'w'))
+
+        # load the nber tag
+        def nber_callback(data: List[str], result: dict):
+            patent_id = data[1]
+            result[patent_id]['tag'].append(self.nber_category[data[2]])
+            result[patent_id]['tag'].append(self.nber_subcategory[data[3]])
+            result[patent_id]['tag'] = unique(result[patent_id]['tag'])
+        self.logger.critical('nber')
+        patents = self.process_file(
+            os.path.join(self.data_path, 'nber.tsv'),
+            os.path.join(self.data_path, 'nber.json'),
+            patents,
+            nber_callback,
+            lambda count: self.logger.debug('processed {} data'.format(count)))
+        json.dump(patents, open(os.path.join(self.data_path, 'nber.json'), 'w'))
+
+        # load the uspc
+        def uspc_callback(data: List[str], result: dict):
+            patent_id = data[1]
+            result[patent_id]['tag'].append(self.uspc_class[data[2]])
+            result[patent_id]['tag'].append(self.uspc_subclass[data[3]])
+            result[patent_id]['tag'] = unique(result[patent_id]['tag'])
+        self.logger.critical('uspc')
+        patents = self.process_file(
+            os.path.join(self.data_path, 'uspc.tsv'),
+            os.path.join(self.data_path, 'uspc.json'),
+            patents,
+            uspc_callback,
+            lambda count: self.logger.debug('processed {} data'.format(count)))
+        json.dump(patents, open(os.path.join(self.data_path, 'uspc.json'), 'w'))
+
+        # load the uspc
+        def uspc_current_callback(data: List[str], result: dict):
+            patent_id = data[1]
+            result[patent_id]['tag'].append(self.uspc_class[data[2]])
+            result[patent_id]['tag'].append(self.uspc_subclass[data[3]])
+            result[patent_id]['tag'] = unique(result[patent_id]['tag'])
+        self.logger.critical('uspc_current')
+        patents = self.process_file(
+            os.path.join(self.data_path, 'uspc_current.tsv'),
+            os.path.join(self.data_path, 'uspc_current.json'),
+            patents,
+            uspc_current_callback,
+            lambda count: self.logger.debug('processed {} data'.format(count)))
+        json.dump(patents, open(os.path.join(self.data_path, 'uspc_current.json'), 'w'))
+
+        # load the wipo
+        def wipo_callback(data: List[str], result: dict):
+            patent_id = data[0]
+            result[patent_id]['tag'].append(self.wipo_field[data[1]])
+            result[patent_id]['tag'] = unique(result[patent_id]['tag'])
+        self.logger.critical('wipo')
+        patents = self.process_file(
+            os.path.join(self.data_path, 'wipo.tsv'),
+            os.path.join(self.data_path, 'wipo.json'),
+            patents,
+            wipo_callback,
+            lambda count: self.logger.debug('processed {} data'.format(count)))
+        json.dump(patents, open(os.path.join(self.data_path, 'wipo.json'), 'w'))
+
+        return patents
 
